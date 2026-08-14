@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  avatar       String   @default("🎾")
+  ntrp         Float    @default(3.0)
+  homeCourt    String?
+  playStyle    String   @default("BOTH") // SINGLES | DOUBLES | BOTH
+  bio          String?
+  createdAt    DateTime @default(now())
+
+  hostedMatches Match[]   @relation("HostedMatches")
+  signups       Signup[]
+  comments      Comment[]
+}
+
+model Match {
+  id           String   @id @default(cuid())
+  hostId       String
+  host         User     @relation("HostedMatches", fields: [hostId], references: [id], onDelete: Cascade)
+  title        String
+  courtName    String
+  courtArea    String // district / area, used for filtering
+  startsAt     DateTime
+  durationMin  Int      @default(120)
+  capacity     Int // total players, including the host
+  minNtrp      Float    @default(1.0)
+  maxNtrp      Float    @default(7.0)
+  format       String   @default("DOUBLES") // SINGLES | DOUBLES | DRILL
+  feeCents     Int      @default(0) // cost per person, in cents
+  note         String?
+  cancelled    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  signups  Signup[]
+  comments Comment[]
+
+  @@index([startsAt])
+}
+
+model Signup {
+  id        String   @id @default(cuid())
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([matchId, userId])
+  @@index([matchId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([matchId, createdAt])
+}

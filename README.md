@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Love All · Tennis matchups
 
-## Getting Started
+Find players at your level and get on court. Web MVP.
 
-First, run the development server:
+## Getting started
 
 ```bash
+npm install
+npm run db:seed   # optional: load demo data
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. Demo account: `demo@loveall.dev` / `tennis123` (only exists after seeding).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+A fresh clone needs a `.env` — copy `.env.example`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env
+openssl rand -base64 32   # put the result in AUTH_SECRET
+npx prisma migrate dev
+```
 
-## Learn More
+## What works today
 
-To learn more about Next.js, take a look at the following resources:
+- **Accounts** — email + password (bcrypt-hashed); the session is a JWT in an httpOnly cookie, good for 30 days
+- **Hosting a match** — time, duration, court, area, format (singles / doubles / drills), player count, cost per person, NTRP range, notes
+- **Browsing and filtering** — filter by area and format, or show only matches you're eligible for; three tabs: all / I'm playing / hosting
+- **Joining** — join and leave; full matches are blocked, and an out-of-range NTRP is refused with the reason; the host takes a spot automatically and can only cancel the whole match
+- **Messages** — a message board on every match
+- **Profile** — display name, avatar, self-rated NTRP, home court, singles/doubles preference, short bio
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Next.js 16 (App Router + Server Actions), React 19, TypeScript, Tailwind v4, Prisma 7 + SQLite.
 
-## Deploy on Vercel
+There's no separate API layer — pages are Server Components that query the database directly, and writes go through Server Actions.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Layout
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+prisma/schema.prisma      Data model: User / Match / Signup / Comment
+prisma/seed.ts            Demo data
+src/lib/prisma.ts         Prisma client (better-sqlite3 driver adapter)
+src/lib/auth.ts           Session issuing and reading
+src/lib/actions/          Server Actions: auth.ts / matches.ts
+src/lib/format.ts         Display logic for NTRP, areas, times and money
+src/app/matches/          List, detail, create
+src/components/           Cards, join buttons, message form
+```
+
+## Commands
+
+```bash
+npm run dev          # dev server
+npm run build        # production build
+npm run db:seed      # wipe and reload demo data
+npm run db:reset     # drop the database and re-run migrations
+npm run db:studio    # browse data in Prisma Studio
+```
+
+## Before going live
+
+- Replace `AUTH_SECRET` with a real random value; don't ship the development one
+- Move from SQLite to Postgres: change the provider in `prisma/schema.prisma` and swap `@prisma/adapter-better-sqlite3` for the matching adapter
+- There's no email verification or password reset, and no rate limiting — the login route wants some
+- The `capacity` check runs inside a transaction, which is enough for single-node SQLite; confirm the isolation level after switching databases
+
+## Possible next steps
+
+Court search by distance or map, social sign-in, a waitlist when matches fill, no-show tracking and a reliability score, post-match ratings to calibrate NTRP, reminders before start time.
