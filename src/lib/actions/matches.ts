@@ -4,7 +4,8 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
-import { isValidTimeZone, wallClockToInstant } from '@/lib/time'
+import { wallClockToInstant } from '@/lib/time'
+import { geocodePlace, timezoneFor } from '@/lib/geo'
 import { minorUnitsPer } from '@/lib/format'
 import type { FormState } from './auth'
 
@@ -16,7 +17,8 @@ export async function createMatch(_prev: FormState, formData: FormData): Promise
   const courtName = String(formData.get('courtName') ?? '').trim()
   const city = String(formData.get('city') ?? '').trim()
   const country = String(formData.get('country') ?? '').trim()
-  const timezone = String(formData.get('timezone') ?? '').trim()
+  const latRaw = Number(formData.get('lat'))
+  const lonRaw = Number(formData.get('lon'))
   const durationMin = Number(formData.get('durationMin') ?? 120)
   const capacity = Number(formData.get('capacity') ?? 4)
   const minNtrp = Number(formData.get('minNtrp') ?? 1)
@@ -29,7 +31,27 @@ export async function createMatch(_prev: FormState, formData: FormData): Promise
   if (!courtName) return { error: 'Enter the court name' }
   if (!city) return { error: 'Enter the city' }
   if (!country) return { error: 'Enter the country' }
-  if (!isValidTimeZone(timezone)) return { error: "Pick the court's time zone" }
+
+  const hasPoint =
+    Number.isFinite(latRaw) &&
+    Number.isFinite(lonRaw) &&
+    latRaw >= -90 &&
+    latRaw <= 90 &&
+    lonRaw >= -180 &&
+    lonRaw <= 180
+  const lat = hasPoint ? latRaw : null
+  const lon = hasPoint ? lonRaw : null
+
+  // Where the court is decides what time it keeps. A court picked on the map
+  // brings its own position; one typed by hand is placed by its city instead.
+  let timezone = lat != null && lon != null ? timezoneFor(lat, lon) : null
+  if (!timezone) {
+    const point = await geocodePlace(city, country)
+    if (point) timezone = timezoneFor(point.lat, point.lon)
+  }
+  if (!timezone) {
+    return { error: "Couldn't work out where that court is — pick it on the map, or check the city and country" }
+  }
 
   // The host types wall-clock time at the court, so it only means something in that zone
   const startsAt = wallClockToInstant(String(formData.get('startsAt') ?? ''), timezone)
@@ -50,6 +72,8 @@ export async function createMatch(_prev: FormState, formData: FormData): Promise
       courtName,
       city,
       country,
+      lat,
+      lon,
       timezone,
       startsAt,
       durationMin,

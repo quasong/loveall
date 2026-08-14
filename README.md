@@ -31,12 +31,52 @@ npx prisma migrate dev
 
 ## Anywhere in the world
 
-A court is a physical place, so a match carries its city, country and IANA time
-zone. `startsAt` is stored as an absolute instant, and the host enters wall-clock
-time at the court — `src/lib/time.ts` converts between the two, so a match posted
-in Tokyo reads as 07:00 JST whether it is browsed from Berlin or from the server.
-Fees are quoted in the currency the court bills in, including zero-decimal ones
-like JPY.
+A court is a physical place, so a match carries its city, country, position and
+IANA time zone. `startsAt` is stored as an absolute instant, and the host enters
+wall-clock time at the court — `src/lib/time.ts` converts between the two, so a
+match posted in Tokyo reads as 07:00 JST whether it is browsed from Berlin or
+from the server. Fees are quoted in the currency the court bills in, including
+zero-decimal ones like JPY.
+
+Nobody is ever asked what time zone they are in. It is derived on the server from
+the court's coordinates (`tz-lookup`), and for a court typed in by hand, from the
+city geocoded first. Getting this wrong by trusting the browser's zone would put
+a Barcelona match an hour out for everyone reading it from London.
+
+## Location and the map
+
+On a first visit the page asks — in the page, before the browser's own prompt —
+whether to use the visitor's position. Coordinates go to the server, which names
+the city and stores both in an httpOnly cookie; the position itself never reaches
+a third party from the browser.
+
+- **Allowed** — the list narrows to matches within 100 km, each showing its
+  distance, with "Show everywhere" always available
+- **Declined** — remembered, so it stops asking, and the full list is shown
+
+When hosting, "Pick a court on the map" opens a real map — streets, water, parks,
+place names — on which the only marked points are tennis courts. The basemap is
+CARTO Positron precisely because it draws no points of interest of its own: no
+shops, no libraries, no civic buildings competing with the pins. Courts come from
+OpenStreetMap and are drawn as ball pins, named ones carrying a label.
+
+Choosing one fills in the court name, city, country and position, all of which
+stay editable, and every field can still be typed by hand instead. Panning offers
+"Search this area" rather than re-querying on every drag, which keeps the free
+Overpass instances happy.
+
+### External services
+
+All free, no keys, all called from the server:
+
+| Service | Used for | Notes |
+| --- | --- | --- |
+| Overpass API | finding tennis courts | public instances are often saturated; three mirrors are tried in turn |
+| Nominatim | city names and city search | asks for a real User-Agent and light traffic — see `UA` in `src/lib/geo.ts` |
+| CARTO Positron tiles | the basemap | chosen for having no POI icons; free for light use, commercial volume needs a CARTO plan |
+
+None of them are suitable for production volume as-is. If this grows, move to a
+hosted tile provider and either a paid geocoder or your own Nominatim.
 
 ## Stack
 
@@ -54,6 +94,9 @@ src/lib/auth.ts           Session issuing and reading
 src/lib/actions/          Server Actions: auth.ts / matches.ts
 src/lib/format.ts         Display logic for NTRP, countries, levels and money
 src/lib/time.ts           Time-zone conversion and formatting
+src/lib/geo.ts            Courts, geocoding and coordinate to time-zone lookup
+src/lib/location.ts       The visitor's stored position
+src/app/api/              Court and place lookups used by the map picker
 src/components/hero.tsx   Landing cover above the match list
 src/app/matches/          List, detail, create
 src/components/           Cards, join buttons, message form

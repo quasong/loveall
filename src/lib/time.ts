@@ -120,8 +120,3 @@ export function zoneAbbreviation(instant: Date, tz: string) {
   }).formatToParts(instant)
   return parts.find((p) => p.type === 'timeZoneName')?.value ?? tz
 }
-
-/** "Europe/Berlin" reads better as "Berlin" next to a city name. */
-export function prettyZone(tz: string) {
-  return tz.split('/').pop()?.replace(/_/g, ' ') ?? tz
-}

@@ -1,11 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import { createMatch } from '@/lib/actions/matches'
 import { SubmitButton } from '@/components/submit-button'
-import { TimeZoneSelect } from '@/components/timezone-select'
 import { StartTimeInput } from '@/components/start-time-input'
+import { CourtPicker, type PickedCourt } from '@/components/court-picker'
 import { COUNTRY_SUGGESTIONS, FORMATS } from '@/lib/format'
 
 /**
@@ -13,8 +13,27 @@ import { COUNTRY_SUGGESTIONS, FORMATS } from '@/lib/format'
  * it leaves out (level range, cost, notes) falls back to an open default, and
  * the full form is one link away.
  */
-export function QuickHost({ signedIn, defaultCourt }: { signedIn: boolean; defaultCourt: string }) {
+export function QuickHost({
+  signedIn,
+  defaultCourt,
+  origin,
+}: {
+  signedIn: boolean
+  defaultCourt: string
+  origin: { lat: number; lon: number } | null
+}) {
   const [state, formAction] = useActionState(createMatch, null)
+  const [court, setCourt] = useState(defaultCourt)
+  const [city, setCity] = useState('')
+  const [country, setCountry] = useState('')
+  const [point, setPoint] = useState<{ lat: number; lon: number } | null>(null)
+
+  const applyCourt = (picked: PickedCourt) => {
+    setCourt(picked.name)
+    if (picked.city) setCity(picked.city)
+    if (picked.country) setCountry(picked.country)
+    setPoint({ lat: picked.lat, lon: picked.lon })
+  }
 
   if (!signedIn) {
     return (
@@ -43,6 +62,15 @@ export function QuickHost({ signedIn, defaultCourt }: { signedIn: boolean; defau
       <p className="mt-1 text-sm text-muted">Anywhere in the world. You take the first spot.</p>
 
       <form action={formAction} className="mt-4 space-y-3">
+        {point && (
+          <>
+            <input type="hidden" name="lat" value={point.lat} />
+            <input type="hidden" name="lon" value={point.lon} />
+          </>
+        )}
+
+        <CourtPicker origin={origin} onPick={applyCourt} />
+
         <div>
           <label className="label" htmlFor="qh-title">
             Title
@@ -65,7 +93,11 @@ export function QuickHost({ signedIn, defaultCourt }: { signedIn: boolean; defau
             id="qh-court"
             name="courtName"
             required
-            defaultValue={defaultCourt}
+            value={court}
+            onChange={(e) => {
+              setCourt(e.target.value)
+              setPoint(null) // typed by hand: the pin no longer describes this court
+            }}
             className="field"
             placeholder="Court name"
           />
@@ -76,7 +108,15 @@ export function QuickHost({ signedIn, defaultCourt }: { signedIn: boolean; defau
             <label className="label" htmlFor="qh-city">
               City
             </label>
-            <input id="qh-city" name="city" required className="field" placeholder="Lisbon" />
+            <input
+              id="qh-city"
+              name="city"
+              required
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className="field"
+              placeholder="Lisbon"
+            />
           </div>
           <div>
             <label className="label" htmlFor="qh-country">
@@ -87,6 +127,8 @@ export function QuickHost({ signedIn, defaultCourt }: { signedIn: boolean; defau
               name="country"
               required
               list="country-suggestions"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
               className="field"
               placeholder="Portugal"
             />
@@ -103,13 +145,6 @@ export function QuickHost({ signedIn, defaultCourt }: { signedIn: boolean; defau
             Start (court's local time)
           </label>
           <StartTimeInput id="qh-starts" />
-        </div>
-
-        <div>
-          <label className="label" htmlFor="qh-tz">
-            Time zone
-          </label>
-          <TimeZoneSelect id="qh-tz" />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

@@ -4,17 +4,44 @@ import { useActionState, useState } from 'react'
 import { createMatch } from '@/lib/actions/matches'
 import { SubmitButton } from '@/components/submit-button'
 import { COUNTRY_SUGGESTIONS, CURRENCIES, FORMATS, NTRP_STEPS } from '@/lib/format'
-import { TimeZoneSelect } from '@/components/timezone-select'
 import { StartTimeInput } from '@/components/start-time-input'
+import { CourtPicker, type PickedCourt } from '@/components/court-picker'
 
-export function NewMatchForm({ defaultNtrp, defaultCourt }: { defaultNtrp: number; defaultCourt: string }) {
+export function NewMatchForm({
+  defaultNtrp,
+  defaultCourt,
+  origin,
+}: {
+  defaultNtrp: number
+  defaultCourt: string
+  origin: { lat: number; lon: number } | null
+}) {
   const [state, formAction] = useActionState(createMatch, null)
   const [minNtrp, setMinNtrp] = useState(Math.max(1.5, defaultNtrp - 0.5))
   const [maxNtrp, setMaxNtrp] = useState(Math.min(6.0, defaultNtrp + 0.5))
   const [format, setFormat] = useState('DOUBLES')
+  const [court, setCourt] = useState(defaultCourt)
+  const [city, setCity] = useState('')
+  const [country, setCountry] = useState('')
+  const [point, setPoint] = useState<{ lat: number; lon: number } | null>(null)
+
+  const applyCourt = (picked: PickedCourt) => {
+    setCourt(picked.name)
+    if (picked.city) setCity(picked.city)
+    if (picked.country) setCountry(picked.country)
+    setPoint({ lat: picked.lat, lon: picked.lon })
+  }
 
   return (
     <form action={formAction} className="card space-y-5 p-6">
+      {point && (
+        <>
+          <input type="hidden" name="lat" value={point.lat} />
+          <input type="hidden" name="lon" value={point.lon} />
+        </>
+      )}
+
+      <CourtPicker origin={origin} onPick={applyCourt} />
       <div>
         <label className="label" htmlFor="title">
           Title
@@ -37,7 +64,11 @@ export function NewMatchForm({ defaultNtrp, defaultCourt }: { defaultNtrp: numbe
           id="courtName"
           name="courtName"
           required
-          defaultValue={defaultCourt}
+          value={court}
+          onChange={(e) => {
+            setCourt(e.target.value)
+            setPoint(null)
+          }}
           className="field"
           placeholder="e.g. Roland-Garros, court 7"
         />
@@ -48,7 +79,15 @@ export function NewMatchForm({ defaultNtrp, defaultCourt }: { defaultNtrp: numbe
           <label className="label" htmlFor="city">
             City
           </label>
-          <input id="city" name="city" required className="field" placeholder="Paris" />
+          <input
+            id="city"
+            name="city"
+            required
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            className="field"
+            placeholder="Paris"
+          />
         </div>
         <div>
           <label className="label" htmlFor="country">
@@ -59,6 +98,8 @@ export function NewMatchForm({ defaultNtrp, defaultCourt }: { defaultNtrp: numbe
             name="country"
             required
             list="country-suggestions"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
             className="field"
             placeholder="France"
           />
@@ -91,15 +132,9 @@ export function NewMatchForm({ defaultNtrp, defaultCourt }: { defaultNtrp: numbe
         </div>
       </div>
 
-      <div>
-        <label className="label" htmlFor="timezone">
-          Time zone of the court
-        </label>
-        <TimeZoneSelect />
-        <p className="mt-1 text-xs text-muted">
-          Everyone sees this match in the court's local time, whatever zone they're browsing from.
-        </p>
-      </div>
+      <p className="text-xs text-muted">
+        Times are read as the court's own local time — the zone comes from where the court is.
+      </p>
 
       <div>
         <span className="label">Format</span>

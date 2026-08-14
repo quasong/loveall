@@ -22,7 +22,16 @@ export type MatchCardData = {
   _count: { signups: number }
 }
 
-export function MatchCard({ match, joined }: { match: MatchCardData; joined?: boolean }) {
+export function MatchCard({
+  match,
+  joined,
+  km,
+}: {
+  match: MatchCardData
+  joined?: boolean
+  /** Distance from the visitor, when both positions are known. */
+  km?: number | null
+}) {
   const taken = match._count.signups
   const left = match.capacity - taken
   const past = match.startsAt.getTime() < Date.now()
@@ -57,6 +66,9 @@ export function MatchCard({ match, joined }: { match: MatchCardData; joined?: bo
           </p>
           <p className="mt-0.5 text-sm text-muted">
             {match.city}, {match.country} · {match.courtName}
+            {km != null && (
+              <span className="text-court-600"> · {km < 1 ? '<1' : Math.round(km)} km away</span>
+            )}
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-1.5">

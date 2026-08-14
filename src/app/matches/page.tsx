@@ -1,9 +1,12 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { getStoredLocation, NEARBY_RADIUS_KM } from '@/lib/location'
+import { distanceKm } from '@/lib/geo'
 import { MatchCard } from '@/components/match-card'
 import { Hero } from '@/components/hero'
 import { QuickHost } from '@/components/quick-host'
+import { LocationGate } from '@/components/location-gate'
 import { FORMATS } from '@/lib/format'
 import type { Prisma } from '@prisma/client'
 
@@ -13,6 +16,7 @@ type SearchParams = Promise<{
   fit?: string
   past?: string
   tab?: string
+  everywhere?: string
 }>
 
 const TABS = [
@@ -23,10 +27,14 @@ const TABS = [
 
 export default async function MatchesPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams
-  const user = await getCurrentUser()
+  const [user, place] = await Promise.all([getCurrentUser(), getStoredLocation()])
+
   const tab = user && TABS.some((t) => t.key === sp.tab) ? sp.tab! : 'all'
   const showPast = sp.past === '1'
   const q = (sp.q ?? '').trim()
+  const here = place?.status === 'allowed' ? place : null
+  // A search or an explicit "everywhere" means the visitor is looking past their own city.
+  const nearbyOnly = !!here && !q && sp.everywhere !== '1'
 
   const where: Prisma.MatchWhereInput = {}
   if (q) {
@@ -50,11 +58,11 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
   if (tab === 'joined' && user) where.signups = { some: { userId: user.id } }
   if (tab === 'hosted' && user) where.hostId = user.id
 
-  const [matches, cities] = await Promise.all([
+  const [found, cities] = await Promise.all([
     prisma.match.findMany({
       where,
       orderBy: { startsAt: showPast ? 'desc' : 'asc' },
-      take: 50,
+      take: 200,
       include: {
         host: { select: { name: true, avatar: true } },
         _count: { select: { signups: true } },
@@ -70,9 +78,37 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
     }),
   ])
 
+  // Courts have positions; matches typed in by hand only have a city name, so
+  // fall back to comparing that against wherever the visitor is.
+  const withDistance = found.map((m) => ({
+    match: m,
+    km:
+      here && m.lat != null && m.lon != null
+        ? distanceKm(here, { lat: m.lat, lon: m.lon })
+        : null,
+  }))
+
+  const matches = nearbyOnly
+    ? withDistance.filter(
+        ({ match, km }) =>
+          (km != null && km <= NEARBY_RADIUS_KM) ||
+          (km == null && match.city.toLowerCase() === here!.city.toLowerCase()),
+      )
+    : withDistance
+
+  const listed = matches.slice(0, 50)
+
   const qs = (patch: Record<string, string | undefined>) => {
     const next = new URLSearchParams()
-    const merged = { q: sp.q, format: sp.format, fit: sp.fit, past: sp.past, tab, ...patch }
+    const merged = {
+      q: sp.q,
+      format: sp.format,
+      fit: sp.fit,
+      past: sp.past,
+      everywhere: sp.everywhere,
+      tab,
+      ...patch,
+    }
     for (const [k, v] of Object.entries(merged)) if (v && v !== 'all') next.set(k, v)
     const s = next.toString()
     return s ? `/matches?${s}#open-matches` : '/matches#open-matches'
@@ -85,11 +121,29 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
       <div id="open-matches" className="scroll-mt-20">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Open matches</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">
+              {nearbyOnly ? `Matches near ${here!.city}` : 'Open matches'}
+            </h2>
             <p className="mt-1 text-sm text-muted">
+              {nearbyOnly
+                ? `Within ${NEARBY_RADIUS_KM} km of you. `
+                : here
+                  ? 'Everywhere. '
+                  : ''}
               {user
-                ? `You rated yourself NTRP ${user.ntrp.toFixed(1)} — find a match you can play.`
+                ? `You rated yourself NTRP ${user.ntrp.toFixed(1)}.`
                 : 'Sign in to join matches and host your own.'}
+              {here && (
+                <>
+                  {' '}
+                  <Link
+                    href={qs({ everywhere: nearbyOnly ? '1' : undefined, q: undefined })}
+                    className="text-court-600 hover:underline"
+                  >
+                    {nearbyOnly ? 'Show everywhere' : `Back to ${here.city}`}
+                  </Link>
+                </>
+              )}
             </p>
           </div>
           {user && (
@@ -111,6 +165,8 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
           <div>
+            <LocationGate decided={!!place} />
+
             <form method="get" action="/matches" className="card mb-4 space-y-3 p-4">
               <input type="hidden" name="tab" value={tab} />
               <div className="flex flex-wrap gap-3">
@@ -190,29 +246,46 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
               </div>
             )}
 
-            {matches.length === 0 ? (
+            {listed.length === 0 ? (
               <div className="card grid place-items-center gap-2 px-6 py-16 text-center">
                 <span className="text-3xl">🎾</span>
                 <p className="font-medium">No matches here yet</p>
                 <p className="text-sm text-muted">
-                  {q ? `Nothing in “${q}” right now. ` : ''}Try a different search, or post the
-                  first one.
+                  {nearbyOnly
+                    ? `Nothing within ${NEARBY_RADIUS_KM} km of ${here!.city} right now.`
+                    : q
+                      ? `Nothing in “${q}” right now.`
+                      : 'Try a different search, or post the first one.'}
                 </p>
+                {nearbyOnly && (
+                  <Link href={qs({ everywhere: '1' })} className="btn-ghost mt-2">
+                    Show matches everywhere
+                  </Link>
+                )}
               </div>
             ) : (
               <div className="grid gap-3">
-                {matches.map((m) => (
+                {listed.map(({ match, km }) => (
                   <MatchCard
-                    key={m.id}
-                    match={m}
-                    joined={'signups' in m && Array.isArray(m.signups) && m.signups.length > 0}
+                    key={match.id}
+                    match={match}
+                    km={km}
+                    joined={
+                      'signups' in match &&
+                      Array.isArray(match.signups) &&
+                      match.signups.length > 0
+                    }
                   />
                 ))}
               </div>
             )}
           </div>
 
-          <QuickHost signedIn={!!user} defaultCourt={user?.homeCourt ?? ''} />
+          <QuickHost
+            signedIn={!!user}
+            defaultCourt={user?.homeCourt ?? ''}
+            origin={here ? { lat: here.lat, lon: here.lon } : null}
+          />
         </div>
       </div>
     </div>

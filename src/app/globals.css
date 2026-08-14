@@ -61,3 +61,62 @@ body {
     @apply inline-flex items-center gap-1 rounded-full border border-line bg-white px-2.5 py-1 text-xs text-muted;
   }
 }
+
+/*
+ * Court pins. The basemap draws no points of interest of its own, so these are
+ * the only marks on it — they get to be large and obvious.
+ */
+.court-pin-wrap {
+  background: none;
+  border: 0;
+}
+
+.court-pin {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  background: #ffffff;
+  border: 2px solid var(--color-court-600);
+  /* a teardrop: round except for the corner that points at the court */
+  border-radius: 50% 50% 50% 4px;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgb(15 61 40 / 0.25);
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease;
+}
+
+.court-pin i {
+  font-size: 15px;
+  font-style: normal;
+  line-height: 1;
+  /* spin the ball back upright inside the tilted pin */
+  transform: rotate(45deg);
+}
+
+.court-pin-wrap:hover .court-pin {
+  transform: rotate(-45deg) scale(1.08);
+}
+
+.court-pin-wrap.is-selected .court-pin {
+  background: var(--color-ball);
+  border-color: var(--color-court-700);
+  transform: rotate(-45deg) scale(1.2);
+}
+
+.court-label {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-ink);
+  background: rgb(255 255 255 / 0.92);
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgb(15 61 40 / 0.15);
+}
+
+/* Leaflet draws a little arrow on tooltips; these are labels, not callouts. */
+.court-label::before {
+  display: none;
+}

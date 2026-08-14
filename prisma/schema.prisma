@@ -31,7 +31,9 @@ model Match {
   courtName    String
   city         String
   country      String
-  timezone     String // IANA zone of the court, e.g. "Europe/Berlin"
+  lat          Float? // set when the court was picked on the map
+  lon          Float?
+  timezone     String // IANA zone, derived on the server from the court's position
   startsAt     DateTime // stored as an absolute instant (UTC)
   durationMin  Int      @default(120)
   capacity     Int // total players, including the host

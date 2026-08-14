@@ -5,7 +5,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { MatchActions } from '@/components/match-actions'
 import { CommentForm } from '@/components/comment-form'
 import { FORMATS, fmtMoney, fmtNtrpRange, fmtRelative } from '@/lib/format'
-import { fmtDateTimeInZone, prettyZone } from '@/lib/time'
+import { fmtDateTimeInZone } from '@/lib/time'
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -60,7 +60,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               <span className="text-muted"> · {fmtRelative(match.startsAt)}</span>
             </p>
             <p className="mt-1 text-xs text-muted">
-              Local time at the court ({prettyZone(match.timezone)})
+              Shown in the court's own local time
             </p>
 
             <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
