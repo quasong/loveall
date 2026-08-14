@@ -3,14 +3,9 @@
 import { useActionState, useState } from 'react'
 import { createMatch } from '@/lib/actions/matches'
 import { SubmitButton } from '@/components/submit-button'
-import { AREAS, FORMATS, NTRP_STEPS, toLocalInputValue } from '@/lib/format'
-
-function defaultStart() {
-  const d = new Date()
-  d.setDate(d.getDate() + 1)
-  d.setHours(19, 0, 0, 0)
-  return toLocalInputValue(d)
-}
+import { COUNTRY_SUGGESTIONS, CURRENCIES, FORMATS, NTRP_STEPS } from '@/lib/format'
+import { TimeZoneSelect } from '@/components/timezone-select'
+import { StartTimeInput } from '@/components/start-time-input'
 
 export function NewMatchForm({ defaultNtrp, defaultCourt }: { defaultNtrp: number; defaultCourt: string }) {
   const [state, formAction] = useActionState(createMatch, null)
@@ -34,50 +29,53 @@ export function NewMatchForm({ defaultNtrp, defaultCourt }: { defaultNtrp: numbe
         />
       </div>
 
+      <div>
+        <label className="label" htmlFor="courtName">
+          Court
+        </label>
+        <input
+          id="courtName"
+          name="courtName"
+          required
+          defaultValue={defaultCourt}
+          className="field"
+          placeholder="e.g. Roland-Garros, court 7"
+        />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="label" htmlFor="courtName">
-            Court
+          <label className="label" htmlFor="city">
+            City
           </label>
-          <input
-            id="courtName"
-            name="courtName"
-            required
-            defaultValue={defaultCourt}
-            className="field"
-            placeholder="e.g. Olympic Forest Park, court 3"
-          />
+          <input id="city" name="city" required className="field" placeholder="Paris" />
         </div>
         <div>
-          <label className="label" htmlFor="courtArea">
-            Area
+          <label className="label" htmlFor="country">
+            Country
           </label>
-          <select id="courtArea" name="courtArea" required className="field" defaultValue="">
-            <option value="" disabled>
-              Pick an area
-            </option>
-            {AREAS.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
+          <input
+            id="country"
+            name="country"
+            required
+            list="country-suggestions"
+            className="field"
+            placeholder="France"
+          />
+          <datalist id="country-suggestions">
+            {COUNTRY_SUGGESTIONS.map((c) => (
+              <option key={c} value={c} />
             ))}
-          </select>
+          </datalist>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="label" htmlFor="startsAt">
-            Start time
+            Start time (court's local time)
           </label>
-          <input
-            id="startsAt"
-            name="startsAt"
-            type="datetime-local"
-            required
-            defaultValue={defaultStart()}
-            className="field"
-          />
+          <StartTimeInput />
         </div>
         <div>
           <label className="label" htmlFor="durationMin">
@@ -91,6 +89,16 @@ export function NewMatchForm({ defaultNtrp, defaultCourt }: { defaultNtrp: numbe
             ))}
           </select>
         </div>
+      </div>
+
+      <div>
+        <label className="label" htmlFor="timezone">
+          Time zone of the court
+        </label>
+        <TimeZoneSelect />
+        <p className="mt-1 text-xs text-muted">
+          Everyone sees this match in the court's local time, whatever zone they're browsing from.
+        </p>
       </div>
 
       <div>
@@ -137,10 +145,27 @@ export function NewMatchForm({ defaultNtrp, defaultCourt }: { defaultNtrp: numbe
           />
         </div>
         <div>
-          <label className="label" htmlFor="feeYuan">
-            Cost per person (¥)
+          <label className="label" htmlFor="fee">
+            Cost per person
           </label>
-          <input id="feeYuan" name="feeYuan" type="number" min={0} step={1} defaultValue={0} className="field" />
+          <div className="flex gap-2">
+            <input
+              id="fee"
+              name="fee"
+              type="number"
+              min={0}
+              step={1}
+              defaultValue={0}
+              className="field"
+            />
+            <select name="currency" defaultValue="USD" className="field w-28 shrink-0">
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

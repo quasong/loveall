@@ -29,14 +29,17 @@ model Match {
   host         User     @relation("HostedMatches", fields: [hostId], references: [id], onDelete: Cascade)
   title        String
   courtName    String
-  courtArea    String // district / area, used for filtering
-  startsAt     DateTime
+  city         String
+  country      String
+  timezone     String // IANA zone of the court, e.g. "Europe/Berlin"
+  startsAt     DateTime // stored as an absolute instant (UTC)
   durationMin  Int      @default(120)
   capacity     Int // total players, including the host
   minNtrp      Float    @default(1.0)
   maxNtrp      Float    @default(7.0)
   format       String   @default("DOUBLES") // SINGLES | DOUBLES | DRILL
-  feeCents     Int      @default(0) // cost per person, in cents
+  feeCents     Int      @default(0) // cost per person, in minor units
+  currency     String   @default("USD") // ISO 4217, since courts bill in local money
   note         String?
   cancelled    Boolean  @default(false)
   createdAt    DateTime @default(now())
@@ -45,6 +48,7 @@ model Match {
   comments Comment[]
 
   @@index([startsAt])
+  @@index([city])
 }
 
 model Signup {

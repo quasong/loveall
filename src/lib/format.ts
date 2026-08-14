@@ -27,51 +27,114 @@ export const NTRP_HINTS: Record<string, string> = {
   '6.0': 'Professional or top collegiate level',
 }
 
-export const AREAS = [
-  'Chaoyang',
-  'Haidian',
-  'Dongcheng',
-  'Xicheng',
-  'Fengtai',
-  'Tongzhou',
-  'Shunyi',
-  'Changping',
-  'Daxing',
-  'Other',
+/**
+ * Suggestions only — the country field is free text, so a court anywhere in the
+ * world can be listed whether or not it appears here.
+ */
+export const COUNTRY_SUGGESTIONS = [
+  'Argentina',
+  'Australia',
+  'Austria',
+  'Belgium',
+  'Brazil',
+  'Canada',
+  'Chile',
+  'China',
+  'Colombia',
+  'Croatia',
+  'Czechia',
+  'Denmark',
+  'Egypt',
+  'France',
+  'Germany',
+  'Greece',
+  'India',
+  'Indonesia',
+  'Ireland',
+  'Israel',
+  'Italy',
+  'Japan',
+  'Kenya',
+  'Malaysia',
+  'Mexico',
+  'Morocco',
+  'Netherlands',
+  'New Zealand',
+  'Nigeria',
+  'Norway',
+  'Philippines',
+  'Poland',
+  'Portugal',
+  'Romania',
+  'Saudi Arabia',
+  'Serbia',
+  'Singapore',
+  'South Africa',
+  'South Korea',
+  'Spain',
+  'Sweden',
+  'Switzerland',
+  'Thailand',
+  'Turkey',
+  'Ukraine',
+  'United Arab Emirates',
+  'United Kingdom',
+  'United States',
+  'Vietnam',
 ]
 
-export function fmtMoney(cents: number) {
+export const CURRENCIES = [
+  'USD',
+  'EUR',
+  'GBP',
+  'JPY',
+  'CNY',
+  'AUD',
+  'CAD',
+  'CHF',
+  'SEK',
+  'NOK',
+  'DKK',
+  'PLN',
+  'CZK',
+  'BRL',
+  'MXN',
+  'ARS',
+  'INR',
+  'SGD',
+  'HKD',
+  'KRW',
+  'NZD',
+  'ZAR',
+  'AED',
+  'TRY',
+]
+
+/** Zero-decimal currencies hold whole units in `feeCents`, not hundredths. */
+const ZERO_DECIMAL = new Set(['JPY', 'KRW', 'VND', 'CLP', 'ISK'])
+
+export function minorUnitsPer(currency: string) {
+  return ZERO_DECIMAL.has(currency) ? 1 : 100
+}
+
+export function fmtMoney(cents: number, currency = 'USD') {
   if (cents === 0) return 'Free'
-  return `¥${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)} / person`
+  const per = minorUnitsPer(currency)
+  const amount = cents / per
+  try {
+    return `${new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: per === 1 || cents % per === 0 ? 0 : 2,
+    }).format(amount)} / person`
+  } catch {
+    return `${amount} ${currency} / person`
+  }
 }
 
 export function fmtNtrpRange(min: number, max: number) {
   if (min <= 1 && max >= 7) return 'Any level'
   return `NTRP ${min.toFixed(1)} – ${max.toFixed(1)}`
-}
-
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const MONTHS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-]
-
-export function fmtDateTime(d: Date, durationMin?: number) {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const base = `${WEEKDAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()} · ${pad(d.getHours())}:${pad(d.getMinutes())}`
-  if (!durationMin) return base
-  const end = new Date(d.getTime() + durationMin * 60_000)
-  return `${base}–${pad(end.getHours())}:${pad(end.getMinutes())}`
 }
 
 export function fmtRelative(d: Date, now = new Date()) {

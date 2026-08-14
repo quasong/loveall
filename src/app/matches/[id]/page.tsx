@@ -4,7 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { MatchActions } from '@/components/match-actions'
 import { CommentForm } from '@/components/comment-form'
-import { FORMATS, fmtDateTime, fmtMoney, fmtNtrpRange, fmtRelative } from '@/lib/format'
+import { FORMATS, fmtMoney, fmtNtrpRange, fmtRelative } from '@/lib/format'
+import { fmtDateTimeInZone, prettyZone } from '@/lib/time'
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -55,8 +56,11 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           <div className="card p-6">
             <h1 className="text-xl font-semibold tracking-tight">{match.title}</h1>
             <p className="mt-2 text-sm">
-              {fmtDateTime(match.startsAt, match.durationMin)}
+              {fmtDateTimeInZone(match.startsAt, match.timezone, match.durationMin)}
               <span className="text-muted"> · {fmtRelative(match.startsAt)}</span>
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              Local time at the court ({prettyZone(match.timezone)})
             </p>
 
             <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
@@ -64,7 +68,10 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
                 <dt className="text-muted">Court</dt>
                 <dd className="mt-0.5">
                   {match.courtName}
-                  <span className="text-muted"> ({match.courtArea})</span>
+                  <span className="text-muted">
+                    {' '}
+                    — {match.city}, {match.country}
+                  </span>
                 </dd>
               </div>
               <div>
@@ -77,7 +84,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               </div>
               <div>
                 <dt className="text-muted">Cost</dt>
-                <dd className="mt-0.5">{fmtMoney(match.feeCents)}</dd>
+                <dd className="mt-0.5">{fmtMoney(match.feeCents, match.currency)}</dd>
               </div>
             </dl>
 

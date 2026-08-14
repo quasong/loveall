@@ -1,11 +1,15 @@
 import Link from 'next/link'
-import { FORMATS, fmtDateTime, fmtMoney, fmtNtrpRange, fmtRelative } from '@/lib/format'
+import { FORMATS, fmtMoney, fmtNtrpRange, fmtRelative } from '@/lib/format'
+import { fmtDateTimeInZone } from '@/lib/time'
 
 export type MatchCardData = {
   id: string
   title: string
   courtName: string
-  courtArea: string
+  city: string
+  country: string
+  timezone: string
+  currency: string
   startsAt: Date
   durationMin: number
   capacity: number
@@ -48,17 +52,17 @@ export function MatchCard({ match, joined }: { match: MatchCardData; joined?: bo
           </div>
 
           <p className="text-sm text-ink">
-            {fmtDateTime(match.startsAt, match.durationMin)}
+            {fmtDateTimeInZone(match.startsAt, match.timezone, match.durationMin)}
             <span className="text-muted"> · {fmtRelative(match.startsAt)}</span>
           </p>
           <p className="mt-0.5 text-sm text-muted">
-            {match.courtArea} · {match.courtName}
+            {match.city}, {match.country} · {match.courtName}
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             <span className="chip">{FORMATS[match.format as keyof typeof FORMATS] ?? match.format}</span>
             <span className="chip">{fmtNtrpRange(match.minNtrp, match.maxNtrp)}</span>
-            <span className="chip">{fmtMoney(match.feeCents)}</span>
+            <span className="chip">{fmtMoney(match.feeCents, match.currency)}</span>
           </div>
         </div>
 

@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { isValidTimeZone, wallClockToInstant } from '@/lib/time'
+import { minorUnitsPer } from '@/lib/format'
 import type { FormState } from './auth'
 
 export async function createMatch(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -12,39 +14,51 @@ export async function createMatch(_prev: FormState, formData: FormData): Promise
 
   const title = String(formData.get('title') ?? '').trim()
   const courtName = String(formData.get('courtName') ?? '').trim()
-  const courtArea = String(formData.get('courtArea') ?? '').trim()
-  const startsAt = new Date(String(formData.get('startsAt') ?? ''))
+  const city = String(formData.get('city') ?? '').trim()
+  const country = String(formData.get('country') ?? '').trim()
+  const timezone = String(formData.get('timezone') ?? '').trim()
   const durationMin = Number(formData.get('durationMin') ?? 120)
   const capacity = Number(formData.get('capacity') ?? 4)
   const minNtrp = Number(formData.get('minNtrp') ?? 1)
   const maxNtrp = Number(formData.get('maxNtrp') ?? 7)
   const format = String(formData.get('format') ?? 'DOUBLES')
-  const feeYuan = Number(formData.get('feeYuan') ?? 0)
+  const currency = String(formData.get('currency') ?? 'USD').trim().toUpperCase()
+  const fee = Number(formData.get('fee') ?? 0)
 
   if (title.length < 2) return { error: 'Give this match a title' }
   if (!courtName) return { error: 'Enter the court name' }
-  if (!courtArea) return { error: 'Pick an area' }
-  if (Number.isNaN(startsAt.getTime())) return { error: 'That start time is not valid' }
+  if (!city) return { error: 'Enter the city' }
+  if (!country) return { error: 'Enter the country' }
+  if (!isValidTimeZone(timezone)) return { error: "Pick the court's time zone" }
+
+  // The host types wall-clock time at the court, so it only means something in that zone
+  const startsAt = wallClockToInstant(String(formData.get('startsAt') ?? ''), timezone)
+  if (!startsAt) return { error: 'That start time is not valid' }
   if (startsAt.getTime() < Date.now()) return { error: 'Start time cannot be in the past' }
+
   if (!Number.isFinite(capacity) || capacity < 2 || capacity > 12) {
     return { error: 'Player count must be between 2 and 12' }
   }
   if (minNtrp > maxNtrp) return { error: 'NTRP minimum cannot be above the maximum' }
-  if (!Number.isFinite(feeYuan) || feeYuan < 0) return { error: 'That cost is not valid' }
+  if (!/^[A-Z]{3}$/.test(currency)) return { error: 'That currency code is not valid' }
+  if (!Number.isFinite(fee) || fee < 0) return { error: 'That cost is not valid' }
 
   const match = await prisma.match.create({
     data: {
       hostId: user.id,
       title,
       courtName,
-      courtArea,
+      city,
+      country,
+      timezone,
       startsAt,
       durationMin,
       capacity,
       minNtrp,
       maxNtrp,
       format,
-      feeCents: Math.round(feeYuan * 100),
+      currency,
+      feeCents: Math.round(fee * minorUnitsPer(currency)),
       note: String(formData.get('note') ?? '').trim().slice(0, 500) || null,
       // The host takes one of the spots
       signups: { create: { userId: user.id } },

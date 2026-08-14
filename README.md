@@ -23,11 +23,20 @@ npx prisma migrate dev
 ## What works today
 
 - **Accounts** — email + password (bcrypt-hashed); the session is a JWT in an httpOnly cookie, good for 30 days
-- **Hosting a match** — time, duration, court, area, format (singles / doubles / drills), player count, cost per person, NTRP range, notes
-- **Browsing and filtering** — filter by area and format, or show only matches you're eligible for; three tabs: all / I'm playing / hosting
+- **Hosting a match** — court, city, country and the court's time zone, plus time, duration, format (singles / doubles / drills), player count, cost per person in any currency, NTRP range and notes. There is a short version in the sidebar of the match list and a full one at `/matches/new`
+- **Browsing and filtering** — search any city, country or court, filter by format, or show only matches you're eligible for; three tabs: all / I'm playing / hosting
 - **Joining** — join and leave; full matches are blocked, and an out-of-range NTRP is refused with the reason; the host takes a spot automatically and can only cancel the whole match
 - **Messages** — a message board on every match
 - **Profile** — display name, avatar, self-rated NTRP, home court, singles/doubles preference, short bio
+
+## Anywhere in the world
+
+A court is a physical place, so a match carries its city, country and IANA time
+zone. `startsAt` is stored as an absolute instant, and the host enters wall-clock
+time at the court — `src/lib/time.ts` converts between the two, so a match posted
+in Tokyo reads as 07:00 JST whether it is browsed from Berlin or from the server.
+Fees are quoted in the currency the court bills in, including zero-decimal ones
+like JPY.
 
 ## Stack
 
@@ -43,7 +52,9 @@ prisma/seed.ts            Demo data
 src/lib/prisma.ts         Prisma client (better-sqlite3 driver adapter)
 src/lib/auth.ts           Session issuing and reading
 src/lib/actions/          Server Actions: auth.ts / matches.ts
-src/lib/format.ts         Display logic for NTRP, areas, times and money
+src/lib/format.ts         Display logic for NTRP, countries, levels and money
+src/lib/time.ts           Time-zone conversion and formatting
+src/components/hero.tsx   Landing cover above the match list
 src/app/matches/          List, detail, create
 src/components/           Cards, join buttons, message form
 ```
