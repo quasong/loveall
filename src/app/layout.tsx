@@ -17,34 +17,34 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-screen antialiased">
         <header className="sticky top-0 z-20 border-b border-line bg-canvas/85 backdrop-blur">
           <nav className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3">
-            <Link href="/matches" className="flex items-center gap-2 font-semibold tracking-tight">
+            <Link href="/matches" className="flex shrink-0 items-center gap-2 whitespace-nowrap font-semibold tracking-tight">
               <span className="grid size-8 place-items-center rounded-full bg-ball text-base">🎾</span>
               Love All
             </Link>
 
-            <div className="ml-auto flex items-center gap-2 text-sm">
+            <div className="ml-auto flex min-w-0 items-center gap-2 text-sm">
               {user ? (
                 <>
-                  <Link href="/matches/new" className="btn-primary">
+                  <Link href="/matches/new" className="btn-primary hidden sm:inline-flex">
                     Host a match
                   </Link>
                   <Link
                     href="/profile"
-                    className="flex items-center gap-2 rounded-full border border-line bg-white py-1 pl-1 pr-3 transition hover:bg-court-50"
+                    className="flex shrink-0 items-center gap-2 rounded-full border border-line bg-white p-1 transition hover:bg-court-50 sm:pr-3"
                   >
                     <span className="grid size-7 place-items-center rounded-full bg-court-50">{user.avatar}</span>
-                    <span className="max-w-24 truncate">{user.name}</span>
+                    <span className="hidden max-w-24 truncate sm:inline">{user.name}</span>
                   </Link>
                   <form action={logout}>
-                    <button className="px-2 py-1 text-muted transition hover:text-ink">Sign out</button>
+                    <button className="whitespace-nowrap px-2 py-1 text-muted transition hover:text-ink">Sign out</button>
                   </form>
                 </>
               ) : (
                 <>
-                  <Link href="/login" className="btn-ghost">
+                  <Link href="/login" className="btn-ghost whitespace-nowrap">
                     Sign in
                   </Link>
-                  <Link href="/register" className="btn-primary">
+                  <Link href="/register" className="btn-primary whitespace-nowrap">
                     Sign up
                   </Link>
                 </>

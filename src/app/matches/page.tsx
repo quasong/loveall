@@ -163,14 +163,14 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
           )}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
           <div>
             <LocationGate decided={!!place} />
 
             <form method="get" action="/matches" className="card mb-4 space-y-3 p-4">
               <input type="hidden" name="tab" value={tab} />
               <div className="flex flex-wrap gap-3">
-                <div className="min-w-48 flex-1">
+                <div className="min-w-0 flex-1 basis-48">
                   <label className="label" htmlFor="q">
                     Where
                   </label>
@@ -182,7 +182,7 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
                     placeholder="City, country or court — anywhere"
                   />
                 </div>
-                <div className="min-w-36">
+                <div className="min-w-0 basis-36 sm:basis-40">
                   <label className="label" htmlFor="format">
                     Format
                   </label>
@@ -264,7 +264,7 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
                 )}
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
                 {listed.map(({ match, km }) => (
                   <MatchCard
                     key={match.id}

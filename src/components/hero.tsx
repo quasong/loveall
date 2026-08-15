@@ -10,7 +10,7 @@ function BallGlobe() {
       viewBox="0 0 260 260"
       role="img"
       aria-label="A tennis ball drawn as a globe"
-      className="h-56 w-56 shrink-0 sm:h-64 sm:w-64"
+      className="h-40 w-40 shrink-0 sm:h-56 sm:w-56 md:h-64 md:w-64"
     >
       <defs>
         <radialGradient id="ball" cx="35%" cy="30%" r="75%">
@@ -76,28 +76,28 @@ function CourtLines() {
 
 export function Hero({ signedIn }: { signedIn: boolean }) {
   return (
-    <section className="relative -mx-4 mb-10 overflow-hidden border-b border-line bg-gradient-to-b from-court-50 to-canvas px-4 pb-14 pt-12 sm:rounded-3xl sm:border sm:px-10">
+    <section className="relative -mx-4 mb-8 overflow-hidden border-b border-line bg-gradient-to-b from-court-50 to-canvas px-4 pb-10 pt-8 sm:mb-10 sm:rounded-3xl sm:border sm:px-10 sm:pb-14 sm:pt-12">
       <CourtLines />
 
-      <div className="relative flex flex-col items-center gap-8 md:flex-row md:gap-12">
-        <div className="flex-1 text-center md:text-left">
+      <div className="relative flex flex-col items-center gap-6 md:flex-row md:gap-12">
+        <div className="order-2 flex-1 text-center md:order-none md:text-left">
           <span className="chip border-court-200 bg-white text-court-700">
             🌍 Courts on every continent
           </span>
 
-          <h1 className="mt-4 text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl">
+          <h1 className="mt-4 text-3xl font-semibold leading-[1.1] tracking-tight sm:text-4xl md:text-5xl">
             A hitting partner
             <br />
             wherever you land.
           </h1>
 
-          <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-muted md:mx-0">
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted sm:text-base md:mx-0">
             Post a match at your home court, or find a game the week you arrive somewhere new.
             Every match lists its level, its cost and its local start time — so you know what
             you're walking onto before you pack a racquet.
           </p>
 
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3 md:justify-start">
             <a href="#open-matches" className="btn-primary">
               Browse open matches
             </a>
@@ -106,7 +106,7 @@ export function Hero({ signedIn }: { signedIn: boolean }) {
             </Link>
           </div>
 
-          <dl className="mt-9 flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm md:justify-start">
+          <dl className="mt-7 flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm md:justify-start">
             {[
               ['NTRP 1.5 – 6.0', 'Matched by level, not luck'],
               ['Any time zone', 'Shown in the court’s local time'],
@@ -120,12 +120,14 @@ export function Hero({ signedIn }: { signedIn: boolean }) {
           </dl>
         </div>
 
-        <BallGlobe />
+        <div className="order-1 md:order-none">
+          <BallGlobe />
+        </div>
       </div>
 
       <a
         href="#open-matches"
-        className="relative mx-auto mt-12 flex w-fit flex-col items-center gap-1 text-xs text-muted transition hover:text-ink"
+        className="relative mx-auto mt-8 flex w-fit flex-col items-center gap-1 text-xs text-muted transition hover:text-ink sm:mt-12"
       >
         Open matches below
         <span aria-hidden="true" className="animate-bounce text-base leading-none">

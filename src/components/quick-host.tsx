@@ -37,7 +37,7 @@ export function QuickHost({
 
   if (!signedIn) {
     return (
-      <aside className="card p-5 md:sticky md:top-20">
+      <aside className="card p-5 lg:sticky lg:top-20">
         <h2 className="font-semibold">Got a court booked?</h2>
         <p className="mt-2 text-sm text-muted">
           Post it here and let players in that city fill the empty spots — wherever in the world
@@ -57,7 +57,7 @@ export function QuickHost({
   }
 
   return (
-    <aside className="card p-5 md:sticky md:top-20">
+    <aside className="card p-5 lg:sticky lg:top-20">
       <h2 className="font-semibold">Start a match</h2>
       <p className="mt-1 text-sm text-muted">Anywhere in the world. You take the first spot.</p>
 
@@ -103,7 +103,7 @@ export function QuickHost({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="qh-city">
               City
@@ -147,7 +147,7 @@ export function QuickHost({
           <StartTimeInput id="qh-starts" />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="qh-format">
               Format

@@ -51,88 +51,53 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         </div>
       )}
 
-      <div className="grid gap-5 md:grid-cols-[1fr_18rem] md:items-start">
-        <div className="space-y-5">
-          <div className="card p-6">
-            <h1 className="text-xl font-semibold tracking-tight">{match.title}</h1>
-            <p className="mt-2 text-sm">
-              {fmtDateTimeInZone(match.startsAt, match.timezone, match.durationMin)}
-              <span className="text-muted"> · {fmtRelative(match.startsAt)}</span>
-            </p>
-            <p className="mt-1 text-xs text-muted">
-              Shown in the court's own local time
-            </p>
+      {/* On a phone this reads details → players → messages, which is why the
+          three cards are grid children in their own right rather than a column
+          with a sidebar bolted on. Explicit placement restores the two-column
+          shape from md up. */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 md:grid-cols-[minmax(0,1fr)_18rem] md:items-start">
+        <div className="card p-6 md:col-start-1 md:row-start-1">
+          <h1 className="text-xl font-semibold tracking-tight">{match.title}</h1>
+          <p className="mt-2 text-sm">
+            {fmtDateTimeInZone(match.startsAt, match.timezone, match.durationMin)}
+            <span className="text-muted"> · {fmtRelative(match.startsAt)}</span>
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            Shown in the court's own local time
+          </p>
 
-            <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-muted">Court</dt>
-                <dd className="mt-0.5">
-                  {match.courtName}
-                  <span className="text-muted">
-                    {' '}
-                    — {match.city}, {match.country}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted">Format</dt>
-                <dd className="mt-0.5">{FORMATS[match.format as keyof typeof FORMATS] ?? match.format}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">Level</dt>
-                <dd className="mt-0.5">{fmtNtrpRange(match.minNtrp, match.maxNtrp)}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">Cost</dt>
-                <dd className="mt-0.5">{fmtMoney(match.feeCents, match.currency)}</dd>
-              </div>
-            </dl>
+          <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-muted">Court</dt>
+              <dd className="mt-0.5">
+                {match.courtName}
+                <span className="text-muted">
+                  {' '}
+                  — {match.city}, {match.country}
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted">Format</dt>
+              <dd className="mt-0.5">{FORMATS[match.format as keyof typeof FORMATS] ?? match.format}</dd>
+            </div>
+            <div>
+              <dt className="text-muted">Level</dt>
+              <dd className="mt-0.5">{fmtNtrpRange(match.minNtrp, match.maxNtrp)}</dd>
+            </div>
+            <div>
+              <dt className="text-muted">Cost</dt>
+              <dd className="mt-0.5">{fmtMoney(match.feeCents, match.currency)}</dd>
+            </div>
+          </dl>
 
-            {match.note && (
-              <p className="mt-4 whitespace-pre-wrap rounded-xl bg-court-50 px-4 py-3 text-sm">{match.note}</p>
-            )}
-          </div>
-
-          <section className="card p-6">
-            <h2 className="mb-4 font-semibold">
-              Messages <span className="text-sm font-normal text-muted">{match.comments.length}</span>
-            </h2>
-
-            {match.comments.length === 0 ? (
-              <p className="mb-4 text-sm text-muted">No messages yet.</p>
-            ) : (
-              <ul className="mb-5 space-y-4">
-                {match.comments.map((c) => (
-                  <li key={c.id} className="flex gap-3">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-court-50">
-                      {c.user.avatar}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm">
-                        <span className="font-medium">{c.user.name}</span>
-                        <span className="ml-2 text-xs text-muted">{fmtRelative(c.createdAt)}</span>
-                      </p>
-                      <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-ink/90">{c.body}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {user ? (
-              <CommentForm matchId={match.id} />
-            ) : (
-              <p className="text-sm text-muted">
-                <Link href="/login" className="text-court-600 hover:underline">
-                  Sign in
-                </Link>{' '}
-                to leave a message.
-              </p>
-            )}
-          </section>
+          {match.note && (
+            <p className="mt-4 whitespace-pre-wrap rounded-xl bg-court-50 px-4 py-3 text-sm">{match.note}</p>
+          )}
         </div>
 
-        <aside className="card space-y-4 p-5 md:sticky md:top-20">
+
+        <aside className="card space-y-4 p-5 md:col-start-2 md:row-start-1 md:sticky md:top-20">
           <div>
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-muted">Players</span>
@@ -195,6 +160,44 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
             </Link>
           )}
         </aside>
+
+        <section className="card p-6 md:col-start-1 md:row-start-2">
+          <h2 className="mb-4 font-semibold">
+            Messages <span className="text-sm font-normal text-muted">{match.comments.length}</span>
+          </h2>
+
+          {match.comments.length === 0 ? (
+            <p className="mb-4 text-sm text-muted">No messages yet.</p>
+          ) : (
+            <ul className="mb-5 space-y-4">
+              {match.comments.map((c) => (
+                <li key={c.id} className="flex gap-3">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-court-50">
+                    {c.user.avatar}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm">
+                      <span className="font-medium">{c.user.name}</span>
+                      <span className="ml-2 text-xs text-muted">{fmtRelative(c.createdAt)}</span>
+                    </p>
+                    <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-ink/90">{c.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {user ? (
+            <CommentForm matchId={match.id} />
+          ) : (
+            <p className="text-sm text-muted">
+              <Link href="/login" className="text-court-600 hover:underline">
+                Sign in
+              </Link>{' '}
+              to leave a message.
+            </p>
+          )}
+        </section>
       </div>
     </div>
   )

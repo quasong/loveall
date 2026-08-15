@@ -45,7 +45,7 @@ export function MatchCard({
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-base font-semibold">{match.title}</h3>
+            <h3 className="text-base font-semibold">{match.title}</h3>
             {match.cancelled ? (
               <span className="chip border-red-200 text-red-600">Cancelled</span>
             ) : past ? (
@@ -75,6 +75,15 @@ export function MatchCard({
             <span className="chip">{FORMATS[match.format as keyof typeof FORMATS] ?? match.format}</span>
             <span className="chip">{fmtNtrpRange(match.minNtrp, match.maxNtrp)}</span>
             <span className="chip">{fmtMoney(match.feeCents, match.currency)}</span>
+
+            {/* The host rides along with the chips: on a narrow card it would
+                otherwise squeeze the title into an ellipsis. */}
+            <span className="ml-auto flex min-w-0 items-center gap-1.5 text-xs text-muted">
+              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-court-50">
+                {match.host.avatar}
+              </span>
+              <span className="max-w-28 truncate">{match.host.name}</span>
+            </span>
           </div>
         </div>
 
@@ -82,10 +91,6 @@ export function MatchCard({
           <div className="text-lg font-semibold tabular-nums">
             {taken}
             <span className="text-sm font-normal text-muted">/{match.capacity}</span>
-          </div>
-          <div className="mt-1 flex items-center justify-end gap-1.5 text-xs text-muted">
-            <span className="grid size-6 place-items-center rounded-full bg-court-50">{match.host.avatar}</span>
-            <span className="max-w-20 truncate">{match.host.name}</span>
           </div>
         </div>
       </div>

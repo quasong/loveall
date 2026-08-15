@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import 'leaflet/dist/leaflet.css'
-import type { Map as LeafletMap, Marker } from 'leaflet'
+import type { LatLngBoundsExpression, Map as LeafletMap, Marker } from 'leaflet'
 
 export type PickedCourt = {
   name: string
@@ -67,6 +67,9 @@ function CourtMapDialog({ origin, onPick, onClose }: Props & { onClose: () => vo
   const mapRef = useRef<LeafletMap | null>(null)
   const markersRef = useRef<Map<string, Marker>>(new Map())
   const selectedRef = useRef<string | null>(null)
+  const resizeObserverRef = useRef<ResizeObserver | null>(null)
+  // Framing wanted by the latest results, kept so a later resize can apply it.
+  const pendingFitRef = useRef<LatLngBoundsExpression | null>(null)
 
   const [courts, setCourts] = useState<Court[]>([])
   const [selected, setSelected] = useState<Court | null>(null)
@@ -112,7 +115,7 @@ function CourtMapDialog({ origin, onPick, onClose }: Props & { onClose: () => vo
     markersRef.current.get(court.id)?.getElement()?.classList.add('is-selected')
     selectedRef.current = court.id
 
-    mapRef.current?.panTo([court.lat, court.lon])
+    mapRef.current?.panTo([court.lat, court.lon], { animate: false })
   }, [])
 
   // Boot the map once the dialog is on screen. Leaflet touches `window`, so it
@@ -138,10 +141,21 @@ function CourtMapDialog({ origin, onPick, onClose }: Props & { onClose: () => vo
       }).addTo(map)
 
       mapRef.current = map
-      // The dialog lays out around the map, so the container has its real size
-      // only after this frame — without this, tiles come back missing.
-      requestAnimationFrame(() => map.invalidateSize())
-      setTimeout(() => map.invalidateSize(), 250)
+      // The dialog lays out around the map — and on a phone it is a sheet that
+      // animates up — so the container keeps changing size under Leaflet, which
+      // caches it. Watching the box is more reliable than guessing at timings.
+      const observer = new ResizeObserver(() => {
+        map.invalidateSize()
+        // Results that arrived before the box settled get framed now.
+        const pending = pendingFitRef.current
+        if (pending) {
+          pendingFitRef.current = null
+          map.fitBounds(pending, { maxZoom: 15, padding: [24, 24], animate: false })
+          if (map.getZoom() < 12) map.setZoom(12, { animate: false })
+        }
+      })
+      observer.observe(containerRef.current)
+      resizeObserverRef.current = observer
 
       if (origin) {
         L.circleMarker([origin.lat, origin.lon], {
@@ -171,6 +185,8 @@ function CourtMapDialog({ origin, onPick, onClose }: Props & { onClose: () => vo
 
     return () => {
       cancelled = true
+      resizeObserverRef.current?.disconnect()
+      resizeObserverRef.current = null
       mapRef.current?.remove()
       mapRef.current = null
       markersRef.current.clear()
@@ -179,13 +195,16 @@ function CourtMapDialog({ origin, onPick, onClose }: Props & { onClose: () => vo
 
   // Redraw pins whenever the court list changes.
   useEffect(() => {
-    const map = mapRef.current
-    if (!map) return
+    if (!mapRef.current) return
 
     let cancelled = false
     ;(async () => {
       const L = (await import('leaflet')).default
-      if (cancelled || !mapRef.current) return
+      // Always read the live instance rather than closing over one: the map is
+      // torn down and rebuilt when this component remounts, and drawing into the
+      // discarded one leaves pins on screen with a view that never moves.
+      const map = mapRef.current
+      if (cancelled || !map) return
 
       for (const marker of markersRef.current.values()) marker.remove()
       markersRef.current.clear()
@@ -218,13 +237,22 @@ function CourtMapDialog({ origin, onPick, onClose }: Props & { onClose: () => vo
       }
 
       if (courts.length > 0) {
-        map.invalidateSize()
         // Frame the nearest handful rather than every court in the city: fitting
         // all of them zooms out far enough that the map turns into a pale sheet
         // with no streets to orient by. The rest are a pan and a re-search away.
         const nearest = courts.slice(0, 8).map((c) => [c.lat, c.lon] as [number, number])
-        map.fitBounds(L.latLngBounds(nearest).pad(0.25), { maxZoom: 15 })
-        if (map.getZoom() < 12) map.setZoom(12)
+        const bounds = L.latLngBounds(nearest).pad(0.15)
+        // `animate: false` is load-bearing, not a preference. Leaflet's zoom
+        // animation runs on requestAnimationFrame, which never fires in a
+        // background tab and is throttled hard on some mobile browsers — the
+        // animated call is simply dropped and the map stays where it was, with
+        // every pin off screen. The resize observer re-applies the framing if
+        // the box was still settling when the results landed.
+        map.invalidateSize()
+        pendingFitRef.current = bounds
+        map.fitBounds(bounds, { maxZoom: 15, padding: [24, 24], animate: false })
+        if (map.getZoom() < 12) map.setZoom(12, { animate: false })
+        pendingFitRef.current = null
       }
     })()
 
@@ -247,7 +275,7 @@ function CourtMapDialog({ origin, onPick, onClose }: Props & { onClose: () => vo
         return
       }
       const place = (await res.json()) as { lat: number; lon: number }
-      mapRef.current?.setView([place.lat, place.lon], 15)
+      mapRef.current?.setView([place.lat, place.lon], 15, { animate: false })
       await load(place.lat, place.lon)
     } catch {
       setStatus('Could not look that up.')
@@ -288,34 +316,38 @@ function CourtMapDialog({ origin, onPick, onClose }: Props & { onClose: () => vo
       role="dialog"
       aria-modal="true"
       aria-label="Pick a court"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 sm:items-center sm:p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="card flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden p-0">
-        <div className="flex items-center gap-3 border-b border-line p-4">
-          <div className="min-w-0">
-            <h2 className="font-semibold">Pick a court</h2>
-            <p className="truncate text-xs text-muted">Tennis courts only — nothing else is marked</p>
+      <div className="card flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-b-none p-0 sm:max-h-[90vh] sm:rounded-2xl">
+        <div className="border-b border-line p-4">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <h2 className="font-semibold">Pick a court</h2>
+              <p className="truncate text-xs text-muted">
+                Tennis courts only — nothing else is marked
+              </p>
+            </div>
+            <button type="button" onClick={onClose} className="btn-ghost shrink-0" aria-label="Close">
+              ✕
+            </button>
           </div>
-          <form onSubmit={searchCity} className="ml-auto flex gap-2">
+          <form onSubmit={searchCity} className="mt-3 flex gap-2 sm:mt-2">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="field w-44"
+              className="field min-w-0 flex-1 sm:max-w-56"
               placeholder="Search a city"
               aria-label="Search a city"
             />
-            <button className="btn-ghost">Go</button>
+            <button className="btn-ghost shrink-0">Go</button>
           </form>
-          <button type="button" onClick={onClose} className="btn-ghost" aria-label="Close">
-            ✕
-          </button>
         </div>
 
         <div className="relative shrink-0">
-          <div ref={containerRef} className="h-[26rem] w-full bg-court-50" />
+          <div ref={containerRef} className="h-64 w-full bg-court-50 sm:h-[26rem]" />
 
           {(canSearchArea || loading) && (
             <div className="pointer-events-none absolute inset-x-0 top-3 z-[500] flex justify-center">
@@ -374,8 +406,8 @@ function CourtMapDialog({ origin, onPick, onClose }: Props & { onClose: () => vo
           )}
         </div>
 
-        <div className="flex items-center gap-3 border-t border-line p-4">
-          <p className="min-w-0 flex-1 truncate text-sm">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line p-4">
+          <p className="min-w-0 flex-1 basis-full truncate text-sm sm:basis-0">
             {selected ? (
               <>
                 <span className="font-medium">{selected.name}</span>
@@ -388,10 +420,15 @@ function CourtMapDialog({ origin, onPick, onClose }: Props & { onClose: () => vo
               <span className="text-muted">Tap a court on the map.</span>
             )}
           </p>
-          <button type="button" onClick={onClose} className="btn-ghost">
+          <button type="button" onClick={onClose} className="btn-ghost flex-1 sm:flex-none">
             Cancel
           </button>
-          <button type="button" onClick={confirm} disabled={!selected || picking} className="btn-primary">
+          <button
+            type="button"
+            onClick={confirm}
+            disabled={!selected || picking}
+            className="btn-primary flex-1 sm:flex-none"
+          >
             {picking ? 'Filling in…' : 'Use this court'}
           </button>
         </div>

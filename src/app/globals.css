@@ -120,3 +120,11 @@ body {
 .court-label::before {
   display: none;
 }
+
+/* On a phone-width map a dozen permanent labels overlap into noise. The name
+   is still on the list below and in the confirmation bar. */
+@media (max-width: 640px) {
+  .court-label {
+    display: none;
+  }
+}
