@@ -5,8 +5,10 @@ Find players at your level and get on court. Web MVP.
 ## Getting started
 
 ```bash
+createdb loveall          # PostgreSQL 14+; 18 is what this was built against
 npm install
-npm run db:seed   # optional: load demo data
+npx prisma migrate dev    # create the tables
+npm run db:seed           # optional: load demo data
 npm run dev
 ```
 
@@ -17,7 +19,6 @@ A fresh clone needs a `.env` — copy `.env.example`:
 ```bash
 cp .env.example .env
 openssl rand -base64 32   # put the result in AUTH_SECRET
-npx prisma migrate dev
 ```
 
 ## What works today
@@ -138,7 +139,7 @@ hosted tile provider and either a paid geocoder or your own Nominatim.
 
 ## Stack
 
-Next.js 16 (App Router + Server Actions), React 19, TypeScript, Tailwind v4, Prisma 7 + SQLite.
+Next.js 16 (App Router + Server Actions), React 19, TypeScript, Tailwind v4, Prisma 7 + PostgreSQL.
 
 There's no separate API layer — pages are Server Components that query the database directly, and writes go through Server Actions.
 
@@ -147,7 +148,7 @@ There's no separate API layer — pages are Server Components that query the dat
 ```
 prisma/schema.prisma      Data model: User / Match / Signup / Comment
 prisma/seed.ts            Demo data
-src/lib/prisma.ts         Prisma client (better-sqlite3 driver adapter)
+src/lib/prisma.ts         Prisma client (pg driver adapter)
 src/lib/auth.ts           Session issuing and reading
 src/lib/actions/          Server Actions: auth.ts / matches.ts
 src/lib/format.ts         Display logic for NTRP, countries, levels and money
@@ -170,12 +171,38 @@ npm run db:reset     # drop the database and re-run migrations
 npm run db:studio    # browse data in Prisma Studio
 ```
 
+## Deploying to Vercel
+
+The build command already runs `prisma migrate deploy` before `next build`, so a
+fresh database gets its tables on first deploy.
+
+| Variable | Value | Environments |
+| --- | --- | --- |
+| `DATABASE_URL` | A **pooled** Postgres connection string | Production, Preview |
+| `AUTH_SECRET` | A fresh `openssl rand -base64 32` — never the development one | Production, Preview |
+| `GOOGLE_CLIENT_ID` | From the Google console | Production |
+| `GOOGLE_CLIENT_SECRET` | From the Google console | Production |
+| `APP_URL` | `https://your-domain`, no trailing slash | Production |
+
+Use the pooled connection string, not the direct one: every serverless instance
+opens its own pool, and the direct endpoint runs out of connections quickly.
+
+`APP_URL` is deliberately Production-only. Google requires each redirect URI to be
+registered exactly, and Vercel gives every preview deployment a different
+hostname — so Google sign-in cannot work on previews unless a preview gets a
+stable alias domain that is registered too. Password sign-in still works there.
+
+Register the production callback alongside the local one in the Google console:
+`https://your-domain/api/auth/google/callback`.
+
+`/api/courts` sets `maxDuration = 60` because Overpass is slow and the route
+tries mirrors in turn; the default ten seconds is not enough.
+
 ## Before going live
 
 - Replace `AUTH_SECRET` with a real random value; don't ship the development one
-- Move from SQLite to Postgres: change the provider in `prisma/schema.prisma` and swap `@prisma/adapter-better-sqlite3` for the matching adapter
 - There's no email verification or password reset, and no rate limiting — the login route wants some
-- The `capacity` check runs inside a transaction, which is enough for single-node SQLite; confirm the isolation level after switching databases
+- The `capacity` check runs inside a transaction; under Postgres' default Read Committed two people can still race for the last spot, so a unique constraint or `SELECT … FOR UPDATE` belongs there before this carries real traffic
 
 ## Possible next steps
 

@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { nearbyCourts } from '@/lib/geo'
 
+/**
+ * Overpass is slow and this route tries mirrors in turn, which can exceed the
+ * ten seconds a serverless function gets by default.
+ */
+export const maxDuration = 60
+
 /** Courts around a point, for the map picker. */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
