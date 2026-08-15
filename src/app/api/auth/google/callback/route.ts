@@ -72,7 +72,7 @@ export async function GET(request: Request) {
 
   await createSession(user.id)
 
-  // A new account carries the default 3.0 rating, which is a guess. Matching is
-  // built on that number, so send them somewhere they can correct it.
-  return NextResponse.redirect(new URL(isNew ? '/profile?welcome=1' : '/matches', request.url))
+  // A new account has no handle yet and its 3.0 rating is a guess, so send it
+  // through setup. Both halves there can be skipped.
+  return NextResponse.redirect(new URL(isNew ? '/welcome' : '/matches', request.url))
 }

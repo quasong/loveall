@@ -8,11 +8,16 @@ datasource db {
 
 model User {
   id           String   @id @default(cuid())
+  // Comes from Google and is always verified; usable as a login identifier
   email        String   @unique
-  // Null when the account only ever signs in with Google
+  // The public handle, chosen by the user. Null until they pick one — the
+  // setup step can be skipped. Stored lowercase; uniqueness is case-insensitive.
+  username     String?  @unique
+  // Null until the user sets one. Signing in with Google never needs it.
   passwordHash String?
   // Google's stable subject id; the email alone is not an identity
   googleId     String?  @unique
+  // Display name, shown on matches. Not unique, unlike `username`.
   name         String
   avatar       String   @default("🎾")
   ntrp         Float    @default(3.0)

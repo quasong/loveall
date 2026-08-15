@@ -22,12 +22,37 @@ npx prisma migrate dev
 
 ## What works today
 
-- **Accounts** — email + password (bcrypt-hashed) or Google sign-in; the session is a JWT in an httpOnly cookie, good for 30 days
+- **Accounts** — sign-up is Google only. A username and a password are offered straight afterwards, both optional and both changeable later from the profile. With a password set, either the username or the Google address works as the login identifier. The session is a JWT in an httpOnly cookie, good for 30 days
 - **Hosting a match** — court, city, country and the court's time zone, plus time, duration, format (singles / doubles / drills), player count, cost per person in any currency, NTRP range and notes. There is a short version in the sidebar of the match list and a full one at `/matches/new`
 - **Browsing and filtering** — search any city, country or court, filter by format, or show only matches you're eligible for; three tabs: all / I'm playing / hosting
 - **Joining** — join and leave; full matches are blocked, and an out-of-range NTRP is refused with the reason; the host takes a spot automatically and can only cancel the whole match
 - **Messages** — a message board on every match
 - **Profile** — display name, avatar, self-rated NTRP, home court, singles/doubles preference, short bio
+
+## Accounts, usernames and passwords
+
+There is no email registration form. Every account starts at Google, which is
+also where the email address comes from — always verified, and stored, since it
+doubles as a login identifier.
+
+Three fields do three different jobs, and it is worth keeping them apart:
+
+| Field | Unique | Purpose |
+| --- | --- | --- |
+| `email` | yes | Comes from Google; can be used to sign in |
+| `username` | yes | The public handle, `@ace`. Null until claimed — setup is skippable |
+| `name` | no | Display name on matches. Two players can both be "Ace" |
+
+Handles follow Instagram's shape (`src/lib/username.ts`): letters, numbers,
+periods and underscores, up to 30 characters, no leading or trailing period and
+no two periods in a row. They are stored lowercase so `@Ace` and `@ace` cannot
+both exist, and a reserved list keeps route names like `login` and `profile` out
+of circulation, since a handle is the sort of thing that ends up in a URL.
+
+A password is optional throughout. Without one an account signs in with Google
+only, and a password attempt against it says so rather than "incorrect". Setting
+the first password needs nothing extra; changing an existing one requires the
+current password, so a borrowed session cannot lock the owner out.
 
 ## Google sign-in
 

@@ -33,11 +33,14 @@ async function main() {
   await prisma.match.deleteMany()
   await prisma.user.deleteMany()
 
+  // The demo accounts keep a password so both sign-in routes can be tried;
+  // real accounts start with Google and only get one if the person asks for it.
   const passwordHash = await bcrypt.hash('tennis123', 10)
 
   const people = [
     {
       email: 'demo@loveall.dev',
+      username: 'demo',
       name: 'Demo User',
       avatar: '🎾',
       ntrp: 3.5,
@@ -46,6 +49,7 @@ async function main() {
     },
     {
       email: 'yuki@loveall.dev',
+      username: 'yuki.nakamura',
       name: 'Yuki Nakamura',
       avatar: '🦊',
       ntrp: 4.0,
@@ -54,6 +58,7 @@ async function main() {
     },
     {
       email: 'tomas@loveall.dev',
+      username: 'tomas_f',
       name: 'Tomás Ferreira',
       avatar: '🐯',
       ntrp: 3.5,
@@ -62,6 +67,7 @@ async function main() {
     },
     {
       email: 'mara@loveall.dev',
+      username: 'mara.o',
       name: 'Mara Oyelaran',
       avatar: '🐼',
       ntrp: 3.0,
@@ -70,6 +76,7 @@ async function main() {
     },
     {
       email: 'zoe@loveall.dev',
+      username: 'zoewhitfield',
       name: 'Zoe Whitfield',
       avatar: '⚡️',
       ntrp: 4.5,
@@ -78,6 +85,7 @@ async function main() {
     },
     {
       email: 'anders@loveall.dev',
+      username: 'anders_l',
       name: 'Anders Lindqvist',
       avatar: '🍀',
       ntrp: 2.5,
@@ -259,7 +267,7 @@ async function main() {
   }
 
   console.log(`Seeded ${users.length} users and ${matches.length} matches across 6 countries.`)
-  console.log('Demo account: demo@loveall.dev / tennis123')
+  console.log('Demo account: @demo or demo@loveall.dev, password tennis123')
 }
 
 main()

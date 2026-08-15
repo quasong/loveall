@@ -11,7 +11,7 @@ import { AuthDivider, GoogleButton } from '@/components/google-button'
 const ERRORS: Record<string, string> = {
   google_unconfigured: 'Google sign-in is not set up on this server yet.',
   google_cancelled: 'Google sign-in was cancelled.',
-  google_failed: "Google sign-in didn't work. Try again, or use your password.",
+  google_failed: "Google sign-in didn't work. Try again.",
 }
 
 function LoginForm() {
@@ -36,10 +36,20 @@ function LoginForm() {
 
         <form action={formAction} className="space-y-4">
           <div>
-            <label className="label" htmlFor="email">
-              Email
+            <label className="label" htmlFor="identifier">
+              Username or email
             </label>
-            <input id="email" name="email" type="email" required autoComplete="email" className="field" />
+            <input
+              id="identifier"
+              name="identifier"
+              required
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className="field"
+              placeholder="yourname or you@example.com"
+            />
           </div>
 
           <div>
@@ -62,10 +72,11 @@ function LoginForm() {
         </form>
 
         <p className="text-center text-sm text-muted">
-          No account yet?{' '}
+          Passwords are optional here — set one from your profile if you want a way in besides{' '}
           <Link href="/register" className="text-court-600 hover:underline">
-            Create one
+            Google
           </Link>
+          .
         </p>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ProfileForm } from './form'
+import { PasswordCard, UsernameCard } from '@/components/account-settings'
 
 export default async function ProfilePage({
   searchParams,
@@ -33,16 +34,26 @@ export default async function ProfilePage({
       <p className="mb-6 text-sm text-muted">
         Hosted {hosted} {hosted === 1 ? 'match' : 'matches'}, joined {joined}.
       </p>
-      <ProfileForm
-        user={{
-          name: user.name,
-          avatar: user.avatar,
-          ntrp: user.ntrp,
-          homeCourt: user.homeCourt ?? '',
-          playStyle: user.playStyle,
-          bio: user.bio ?? '',
-        }}
-      />
+      <div className="space-y-5">
+        <ProfileForm
+          user={{
+            name: user.name,
+            avatar: user.avatar,
+            ntrp: user.ntrp,
+            homeCourt: user.homeCourt ?? '',
+            playStyle: user.playStyle,
+            bio: user.bio ?? '',
+          }}
+        />
+
+        <UsernameCard current={user.username ?? ''} />
+        <PasswordCard hasPassword={Boolean(user.passwordHash)} />
+
+        <p className="px-1 text-xs text-muted">
+          Signed in as {user.email}
+          {user.googleId ? ' via Google' : ''}.
+        </p>
+      </div>
     </div>
   )
 }
