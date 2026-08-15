@@ -9,7 +9,10 @@ datasource db {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
-  passwordHash String
+  // Null when the account only ever signs in with Google
+  passwordHash String?
+  // Google's stable subject id; the email alone is not an identity
+  googleId     String?  @unique
   name         String
   avatar       String   @default("🎾")
   ntrp         Float    @default(3.0)

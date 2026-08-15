@@ -22,12 +22,45 @@ npx prisma migrate dev
 
 ## What works today
 
-- **Accounts** — email + password (bcrypt-hashed); the session is a JWT in an httpOnly cookie, good for 30 days
+- **Accounts** — email + password (bcrypt-hashed) or Google sign-in; the session is a JWT in an httpOnly cookie, good for 30 days
 - **Hosting a match** — court, city, country and the court's time zone, plus time, duration, format (singles / doubles / drills), player count, cost per person in any currency, NTRP range and notes. There is a short version in the sidebar of the match list and a full one at `/matches/new`
 - **Browsing and filtering** — search any city, country or court, filter by format, or show only matches you're eligible for; three tabs: all / I'm playing / hosting
 - **Joining** — join and leave; full matches are blocked, and an out-of-range NTRP is refused with the reason; the host takes a spot automatically and can only cancel the whole match
 - **Messages** — a message board on every match
 - **Profile** — display name, avatar, self-rated NTRP, home court, singles/doubles preference, short bio
+
+## Google sign-in
+
+Optional: leave `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` unset and the button
+tells the visitor it isn't configured. To turn it on, create an OAuth client at
+[console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials):
+
+1. **Create credentials → OAuth client ID → Web application**
+2. Authorised redirect URI: `http://localhost:3000/api/auth/google/callback`
+   (and `https://your-domain/api/auth/google/callback` for production — it must
+   match `APP_URL` exactly, character for character)
+3. Put the client id and secret in `.env`, and set `APP_URL`
+4. On the OAuth consent screen, the `email`, `profile` and `openid` scopes are
+   all this needs — no verification review required for those
+
+The flow is the standard authorization code exchange with PKCE, written out in
+`src/lib/google.ts` rather than delegated to an auth library: the app already has
+its own session, read by `getCurrentUser` in eighteen places, and adopting
+Auth.js would have meant taking its session layer too. What that code checks, and
+why each check is there:
+
+| Check | Without it |
+| --- | --- |
+| `state` cookie matches the callback | A forged callback URL could sign somebody in |
+| PKCE `code_verifier` | An intercepted code could be redeemed by someone else |
+| `nonce` inside the ID token | A token minted for another session would pass |
+| Signature against Google's JWKS, plus issuer and audience | The ID token is just JSON anyone can write |
+| `email_verified === true` | Someone could claim an address they don't own and take over the matching account |
+
+Accounts are matched on Google's subject id, not the email address, since an
+address can be renamed or change hands. Signing in with Google using the address
+of an existing password account links the two rather than making a second one;
+that is only safe because of the `email_verified` check above.
 
 ## Anywhere in the world
 
