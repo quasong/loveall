@@ -178,14 +178,23 @@ fresh database gets its tables on first deploy.
 
 | Variable | Value | Environments |
 | --- | --- | --- |
-| `DATABASE_URL` | A **pooled** Postgres connection string | Production, Preview |
+| `DATABASE_URL` | The **pooled** connection string | Production, Preview |
+| `DIRECT_URL` | The **unpooled** one, if the host provides both | Production, Preview |
 | `AUTH_SECRET` | A fresh `openssl rand -base64 32` — never the development one | Production, Preview |
 | `GOOGLE_CLIENT_ID` | From the Google console | Production |
 | `GOOGLE_CLIENT_SECRET` | From the Google console | Production |
 | `APP_URL` | `https://your-domain`, no trailing slash | Production |
 
-Use the pooled connection string, not the direct one: every serverless instance
-opens its own pool, and the direct endpoint runs out of connections quickly.
+Both URLs, because they are used at different moments. The app runs on the
+pooled endpoint — every serverless instance opens its own pool, and the direct
+one runs out of connections quickly. Migrations run on the direct endpoint,
+because a pooled connection in transaction mode cannot execute them. Neon,
+Supabase and Vercel Postgres all hand out both; if yours gives only one, leave
+`DIRECT_URL` unset and that single URL is used for both.
+
+The build fails loudly when neither is set, rather than falling through to
+something that looks plausible — a build log reporting `localhost:5432` means
+the variable never reached the build.
 
 `APP_URL` is deliberately Production-only. Google requires each redirect URI to be
 registered exactly, and Vercel gives every preview deployment a different
