@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Love All">
+  <!--
+    The tab icon. Same mark as the header logo, but stripped to what survives at
+    16 pixels: the ball and its seam. The globe lines the header carries would
+    turn to mush at this size, so they are left off here.
+  -->
+  <defs>
+    <radialGradient id="loveallBall" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#eaff7a" />
+      <stop offset="60%" stop-color="#d8f24b" />
+      <stop offset="100%" stop-color="#a8c62f" />
+    </radialGradient>
+    <clipPath id="loveallClip">
+      <circle cx="32" cy="32" r="30" />
+    </clipPath>
+  </defs>
+
+  <circle cx="32" cy="32" r="30" fill="url(#loveallBall)" />
+
+  <!--
+    The seams sweep well inside the face rather than hugging the edge: pressed
+    against the rim they rasterise into a dark smudge down each side, and the
+    mark stops reading as a ball at all.
+  -->
+  <g clip-path="url(#loveallClip)" fill="none" stroke="#17643f" stroke-width="4">
+    <path d="M9 6 C 31 20, 31 44, 9 58" />
+    <path d="M55 6 C 33 20, 33 44, 55 58" />
+  </g>
+
+  <!-- Light enough to define the edge without thickening into the seams. -->
+  <circle cx="32" cy="32" r="30" fill="none" stroke="#17643f" stroke-width="2" opacity="0.28" />
+</svg>

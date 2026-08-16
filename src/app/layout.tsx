@@ -3,6 +3,7 @@ import Link from 'next/link'
 import './globals.css'
 import { getCurrentUser } from '@/lib/auth'
 import { logout } from '@/lib/actions/auth'
+import { Logo } from '@/components/logo'
 
 export const metadata: Metadata = {
   title: 'Love All · Tennis matchups',
@@ -18,7 +19,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <header className="sticky top-0 z-20 border-b border-line bg-canvas/85 backdrop-blur">
           <nav className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3">
             <Link href="/matches" className="flex shrink-0 items-center gap-2 whitespace-nowrap font-semibold tracking-tight">
-              <span className="grid size-8 place-items-center rounded-full bg-ball text-base">🎾</span>
+              <Logo className="size-8 shrink-0" />
               Love All
             </Link>
 

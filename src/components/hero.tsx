@@ -37,8 +37,11 @@ function BallGlobe() {
         <path d="M130 32 V228" strokeWidth="1.5" />
       </g>
 
-      {/* the seams */}
-      <g fill="none" stroke="#ffffff" strokeWidth="7" strokeLinecap="round">
+      {/* The seams, in the same green as the logo mark so the two balls on the
+          page read as one thing. They are clipped to the ball: the curves run
+          a little past its edge, which went unnoticed while they were white on
+          a pale background but shows as stubs in green. */}
+      <g clipPath="url(#ballClip)" fill="none" stroke="#17643f" strokeWidth="7">
         <path d="M46 62 C 84 104, 84 156, 46 198" />
         <path d="M214 62 C 176 104, 176 156, 214 198" />
       </g>
