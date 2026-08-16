@@ -3,6 +3,11 @@ import bcrypt from 'bcryptjs'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { wallClockToInstant } from '../src/lib/time'
+import { assertLocalDatabase } from './local-only'
+
+// This script empties every table before writing the demo data, so it must
+// never be pointed at a database anyone cares about.
+assertLocalDatabase('the demo seed, which empties every table,')
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
