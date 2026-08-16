@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
@@ -17,6 +18,7 @@ type SearchParams = Promise<{
   past?: string
   tab?: string
   everywhere?: string
+  page?: string
 }>
 
 const TABS = [
@@ -24,6 +26,55 @@ const TABS = [
   { key: 'joined', label: "I'm playing" },
   { key: 'hosted', label: 'Hosting' },
 ]
+
+const PAGE_SIZE = 20
+
+/**
+ * "Near me" measures real distances, which means comparing every candidate in
+ * JS — the schema has no geo index to ask the database for. So that one case
+ * reads a bounded window and pages within it, while every other filter is
+ * expressible in SQL and pages in the database.
+ */
+const NEARBY_WINDOW = 500
+
+/**
+ * The pages worth offering as links: the ends, and the current page with a
+ * neighbour on each side. Anything in between is a gap the "…" stands in for,
+ * so a hundred pages still fit on a phone.
+ */
+function pageNumbers(current: number, last: number) {
+  const wanted = [1, last, current - 1, current, current + 1]
+  return [...new Set(wanted)].filter((n) => n >= 1 && n <= last).sort((a, b) => a - b)
+}
+
+/** One end of the pager. Disabled at the ends, where there is nowhere to go. */
+function PageStep({
+  href,
+  disabled,
+  label,
+  children,
+}: {
+  href: string
+  disabled: boolean
+  label: string
+  children: React.ReactNode
+}) {
+  const shape = 'grid size-9 shrink-0 place-items-center rounded-full border border-line text-sm'
+
+  if (disabled) {
+    return (
+      <span aria-hidden className={`${shape} bg-white text-muted opacity-40`}>
+        {children}
+      </span>
+    )
+  }
+
+  return (
+    <Link href={href} aria-label={label} className={`${shape} bg-white transition hover:bg-court-50`}>
+      {children}
+    </Link>
+  )
+}
 
 export default async function MatchesPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams
@@ -58,17 +109,25 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
   if (tab === 'joined' && user) where.signups = { some: { userId: user.id } }
   if (tab === 'hosted' && user) where.hostId = user.id
 
-  const [found, cities] = await Promise.all([
+  const page = Math.max(1, Math.floor(Number(sp.page)) || 1)
+  const skip = (page - 1) * PAGE_SIZE
+
+  const [found, matchingInDb, cities] = await Promise.all([
     prisma.match.findMany({
       where,
       orderBy: { startsAt: showPast ? 'desc' : 'asc' },
-      take: 200,
+      // Nearby reads a window and pages over it below; everything else lets the
+      // database skip straight to the page being asked for.
+      skip: nearbyOnly ? 0 : skip,
+      take: nearbyOnly ? NEARBY_WINDOW : PAGE_SIZE,
       include: {
         host: { select: { name: true, avatar: true } },
         _count: { select: { signups: true } },
         ...(user ? { signups: { where: { userId: user.id }, select: { id: true } } } : {}),
       },
     }),
+    // The nearby count comes out of the filtered window instead.
+    nearbyOnly ? Promise.resolve(0) : prisma.match.count({ where }),
     prisma.match.findMany({
       where: { cancelled: false, startsAt: { gte: new Date() } },
       distinct: ['city'],
@@ -88,7 +147,7 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
         : null,
   }))
 
-  const matches = nearbyOnly
+  const near = nearbyOnly
     ? withDistance.filter(
         ({ match, km }) =>
           (km != null && km <= NEARBY_RADIUS_KM) ||
@@ -96,8 +155,14 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
       )
     : withDistance
 
-  const listed = matches.slice(0, 50)
+  const total = nearbyOnly ? near.length : matchingInDb
+  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const listed = nearbyOnly ? near.slice(skip, skip + PAGE_SIZE) : near
+  const firstShown = total === 0 ? 0 : skip + 1
 
+  // `page` is deliberately absent from the carried-over params: changing a
+  // filter or a city should land back on the first page, and the pager below
+  // passes the page it wants explicitly.
   const qs = (patch: Record<string, string | undefined>) => {
     const next = new URLSearchParams()
     const merged = {
@@ -249,35 +314,101 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
             {listed.length === 0 ? (
               <div className="card grid place-items-center gap-2 px-6 py-16 text-center">
                 <span className="text-3xl">🎾</span>
-                <p className="font-medium">No matches here yet</p>
-                <p className="text-sm text-muted">
-                  {nearbyOnly
-                    ? `Nothing within ${NEARBY_RADIUS_KM} km of ${here!.city} right now.`
-                    : q
-                      ? `Nothing in “${q}” right now.`
-                      : 'Try a different search, or post the first one.'}
-                </p>
-                {nearbyOnly && (
-                  <Link href={qs({ everywhere: '1' })} className="btn-ghost mt-2">
-                    Show matches everywhere
-                  </Link>
+                {total > 0 ? (
+                  <>
+                    {/* Asked for a page past the end — usually a stale link. */}
+                    <p className="font-medium">Nothing on page {page}</p>
+                    <p className="text-sm text-muted">
+                      This search only goes up to page {lastPage}.
+                    </p>
+                    <Link href={qs({})} className="btn-ghost mt-2">
+                      Back to the first page
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium">No matches here yet</p>
+                    <p className="text-sm text-muted">
+                      {nearbyOnly
+                        ? `Nothing within ${NEARBY_RADIUS_KM} km of ${here!.city} right now.`
+                        : q
+                          ? `Nothing in “${q}” right now.`
+                          : 'Try a different search, or post the first one.'}
+                    </p>
+                    {nearbyOnly && (
+                      <Link href={qs({ everywhere: '1' })} className="btn-ghost mt-2">
+                        Show matches everywhere
+                      </Link>
+                    )}
+                  </>
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
-                {listed.map(({ match, km }) => (
-                  <MatchCard
-                    key={match.id}
-                    match={match}
-                    km={km}
-                    joined={
-                      'signups' in match &&
-                      Array.isArray(match.signups) &&
-                      match.signups.length > 0
-                    }
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+                  {listed.map(({ match, km }) => (
+                    <MatchCard
+                      key={match.id}
+                      match={match}
+                      km={km}
+                      joined={
+                        'signups' in match &&
+                        Array.isArray(match.signups) &&
+                        match.signups.length > 0
+                      }
+                    />
+                  ))}
+                </div>
+
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-muted">
+                    Showing {firstShown}–{skip + listed.length} of {total}
+                    {nearbyOnly && total === NEARBY_WINDOW ? '+' : ''}
+                  </p>
+
+                  {lastPage > 1 && (
+                    <nav aria-label="Pagination" className="flex items-center gap-2">
+                      <PageStep
+                        href={qs({ page: page - 1 === 1 ? undefined : String(page - 1) })}
+                        disabled={page === 1}
+                        label="Previous"
+                      >
+                        ←
+                      </PageStep>
+
+                      <div className="flex items-center gap-1 rounded-full border border-line bg-white p-1 text-sm">
+                        {pageNumbers(page, lastPage).map((n, i, all) => (
+                          <Fragment key={n}>
+                            {/* A jump in the run means pages were skipped over. */}
+                            {i > 0 && n - all[i - 1] > 1 && (
+                              <span className="px-1 text-muted">…</span>
+                            )}
+                            <Link
+                              href={qs({ page: n === 1 ? undefined : String(n) })}
+                              aria-current={n === page ? 'page' : undefined}
+                              className={`rounded-full px-3 py-1 tabular-nums transition ${
+                                n === page
+                                  ? 'bg-court-600 text-white'
+                                  : 'text-muted hover:text-ink'
+                              }`}
+                            >
+                              {n}
+                            </Link>
+                          </Fragment>
+                        ))}
+                      </div>
+
+                      <PageStep
+                        href={qs({ page: String(page + 1) })}
+                        disabled={page >= lastPage}
+                        label="Next"
+                      >
+                        →
+                      </PageStep>
+                    </nav>
+                  )}
+                </div>
+              </>
             )}
           </div>
 
