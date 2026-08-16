@@ -5,14 +5,44 @@
  * that zone, and everyone sees the match in the court's local time.
  */
 
+/**
+ * `Intl.DateTimeFormat` is expensive to construct — enough that building a
+ * fresh one per field per match dominates the render of a long list. The set of
+ * (locale, options, zone) combinations here is tiny and fixed, so they are built
+ * once and reused.
+ */
+const formatters = new Map<string, Intl.DateTimeFormat>()
+
+function dtf(locale: string, options: Intl.DateTimeFormatOptions) {
+  // Every call site passes its options as an object literal written out in a
+  // fixed order, so stringifying them is a stable key. `timeZone` is one of
+  // those options, which is what keeps the zones apart.
+  const key = `${locale}|${JSON.stringify(options)}`
+  let cached = formatters.get(key)
+  if (!cached) {
+    cached = new Intl.DateTimeFormat(locale, options)
+    formatters.set(key, cached)
+  }
+  return cached
+}
+
+const zoneValidity = new Map<string, boolean>()
+
 export function isValidTimeZone(tz: string) {
   if (!tz) return false
+
+  const known = zoneValidity.get(tz)
+  if (known !== undefined) return known
+
+  let valid: boolean
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: tz })
-    return true
+    valid = true
   } catch {
-    return false
+    valid = false
   }
+  zoneValidity.set(tz, valid)
+  return valid
 }
 
 export function detectTimeZone() {
@@ -37,7 +67,7 @@ export function allTimeZones(): string[] {
 
 /** How far `tz` is ahead of UTC at the given instant, in milliseconds. */
 function zoneOffsetMs(instant: Date, tz: string) {
-  const parts = new Intl.DateTimeFormat('en-US', {
+  const parts = dtf('en-US', {
     timeZone: tz,
     hour12: false,
     year: 'numeric',
@@ -89,20 +119,20 @@ export function instantToWallClock(instant: Date, tz: string) {
 export function fmtDateTimeInZone(instant: Date, tz: string, durationMin?: number) {
   const zone = isValidTimeZone(tz) ? tz : 'UTC'
 
-  const day = new Intl.DateTimeFormat('en-US', {
+  const day = dtf('en-US', {
     timeZone: zone,
     weekday: 'short',
     month: 'short',
     day: 'numeric',
   }).format(instant)
 
-  const clock = (d: Date) =>
-    new Intl.DateTimeFormat('en-GB', {
-      timeZone: zone,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(d)
+  const clockFormat = dtf('en-GB', {
+    timeZone: zone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+  const clock = (d: Date) => clockFormat.format(d)
 
   const label = zoneAbbreviation(instant, zone)
   const start = clock(instant)
@@ -114,7 +144,7 @@ export function fmtDateTimeInZone(instant: Date, tz: string, durationMin?: numbe
 
 /** "CEST", or "GMT+8" for zones without a common abbreviation. */
 export function zoneAbbreviation(instant: Date, tz: string) {
-  const parts = new Intl.DateTimeFormat('en-US', {
+  const parts = dtf('en-US', {
     timeZone: tz,
     timeZoneName: 'short',
   }).formatToParts(instant)
