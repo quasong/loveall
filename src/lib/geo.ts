@@ -138,15 +138,37 @@ async function askOverpass(query: string) {
   return null
 }
 
+/**
+ * Overpass answers are cached, but the cache is keyed on the request — and the
+ * map hands over the centre of the viewport as raw floats, so two people
+ * looking at the same city miss each other by a few metres and each pay for a
+ * fresh query. Snapping the centre to a grid makes those one lookup.
+ *
+ * The grid is ~1 km, and the radius grows by the furthest the snap can move the
+ * centre (half a cell diagonally), so nothing within the radius asked for is
+ * lost by searching from the corner of a cell instead of the middle.
+ */
+const GRID_DEG = 0.01
+const GRID_SLACK_M = Math.ceil(((GRID_DEG * Math.SQRT2) / 2) * 111_000)
+
+function snapToGrid(v: number) {
+  return Math.round(v / GRID_DEG) * GRID_DEG
+}
+
 /** Tennis courts and clubs from OpenStreetMap, nearest first. */
 export async function nearbyCourts(lat: number, lon: number, radiusM = 8000): Promise<Court[]> {
-  const radius = Math.min(Math.max(Math.round(radiusM), 500), 40_000)
+  const asked = Math.min(Math.max(Math.round(radiusM), 500), 40_000)
+  const radius = asked + GRID_SLACK_M
+  // Snapped for the query only — distances below are still measured from where
+  // the caller actually is.
+  const originLat = snapToGrid(lat)
+  const originLon = snapToGrid(lon)
   // Kept deliberately cheap: `sport=tennis` already covers pitches, sports
   // centres and most clubs, and a heavy union is what makes these time out.
   const query = `[out:json][timeout:25];
 (
-  nwr["sport"="tennis"](around:${radius},${lat},${lon});
-  nwr["club"="tennis"](around:${radius},${lat},${lon});
+  nwr["sport"="tennis"](around:${radius},${originLat.toFixed(2)},${originLon.toFixed(2)});
+  nwr["club"="tennis"](around:${radius},${originLat.toFixed(2)},${originLon.toFixed(2)});
 );
 out center tags 100;`
 
@@ -188,8 +210,12 @@ out center tags 100;`
       })
     }
 
+    // Searching from the corner of a grid cell reaches a little further than
+    // asked, so the extra is trimmed here against the caller's real position.
+    const askedKm = asked / 1000
     return courts
       .map((c) => ({ court: c, d: distanceKm({ lat, lon }, c) }))
+      .filter(({ d }) => d <= askedKm)
       .sort((a, b) => a.d - b.d)
       .map(({ court }) => court)
       .slice(0, 60)

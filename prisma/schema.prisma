@@ -59,6 +59,8 @@ model Match {
 
   @@index([startsAt])
   @@index([city])
+  // "Hosting" on the match list, and the hosted count on the profile
+  @@index([hostId])
 }
 
 model Signup {
@@ -71,6 +73,8 @@ model Signup {
 
   @@unique([matchId, userId])
   @@index([matchId])
+  // "I'm playing" on the match list, and the joined count on the profile
+  @@index([userId])
 }
 
 model Comment {

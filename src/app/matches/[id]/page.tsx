@@ -14,7 +14,9 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   const match = await prisma.match.findUnique({
     where: { id },
     include: {
-      host: true,
+      // The host is shown through their signup row like everyone else, so the
+      // whole user record — password hash included — has no business being read
+      // here. Only `hostId`, which is on the match itself, is used below.
       signups: {
         orderBy: { createdAt: 'asc' },
         include: { user: { select: { id: true, name: true, avatar: true, ntrp: true, playStyle: true } } },

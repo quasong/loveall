@@ -89,12 +89,14 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
 
   const where: Prisma.MatchWhereInput = {}
   if (q) {
-    // SQLite's LIKE is already case-insensitive for ASCII, which is what `contains` compiles to
+    // `contains` compiles to LIKE, which Postgres treats as case-sensitive —
+    // so "lisbon" would find nothing without asking for ILIKE explicitly. (It
+    // was case-insensitive for free back when this ran on SQLite.)
     where.OR = [
-      { city: { contains: q } },
-      { country: { contains: q } },
-      { courtName: { contains: q } },
-      { title: { contains: q } },
+      { city: { contains: q, mode: 'insensitive' } },
+      { country: { contains: q, mode: 'insensitive' } },
+      { courtName: { contains: q, mode: 'insensitive' } },
+      { title: { contains: q, mode: 'insensitive' } },
     ]
   }
   if (sp.format) where.format = sp.format
@@ -108,6 +110,31 @@ export default async function MatchesPage({ searchParams }: { searchParams: Sear
   }
   if (tab === 'joined' && user) where.signups = { some: { userId: user.id } }
   if (tab === 'hosted' && user) where.hostId = user.id
+
+  if (nearbyOnly) {
+    // The exact test is a circle, which SQL can't draw here — but the square
+    // around that circle it can, and that alone throws out everything on other
+    // continents before the rows are read. The distance check below trims the
+    // corners of the square off. `where.OR` is free to use: a search is what
+    // turns `nearbyOnly` off in the first place.
+    const dLat = NEARBY_RADIUS_KM / 111
+    const dLon = NEARBY_RADIUS_KM / (111 * Math.max(0.01, Math.cos((here!.lat * Math.PI) / 180)))
+
+    where.OR = [
+      {
+        lat: { gte: here!.lat - dLat, lte: here!.lat + dLat },
+        lon: { gte: here!.lon - dLon, lte: here!.lon + dLon },
+      },
+      // Matches typed in by hand carry no position, so they are matched on the
+      // city name instead — the same fallback the distance check makes.
+      {
+        AND: [
+          { OR: [{ lat: null }, { lon: null }] },
+          { city: { equals: here!.city, mode: 'insensitive' } },
+        ],
+      },
+    ]
+  }
 
   const page = Math.max(1, Math.floor(Number(sp.page)) || 1)
   const skip = (page - 1) * PAGE_SIZE
